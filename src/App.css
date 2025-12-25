@@ -1,0 +1,424 @@
+.myBackground {
+  width: 100vw;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg,
+      rgba(0, 60, 63, 1) 0%,
+      /* Dark Cyan */
+      rgba(0, 80, 86, 0.9) 35%,
+      /* Cyan intermédiaire */
+      rgba(218, 74, 14, 0.8) 65%,
+      /* Vivid Orange */
+      rgba(0, 60, 63, 1) 100%
+      /* Dark Cyan */
+    );
+  position: relative;
+  overflow: hidden;
+}
+
+.myBackground::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(218, 74, 14, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 60, 63, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+  animation: float 25s infinite ease-in-out alternate;
+}
+
+.whiteBox {
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 40px 30px;
+  min-width: 350px;
+  max-width: 420px;
+  width: 100%;
+  border-radius: 16px !important;
+  box-shadow:
+    0 25px 65px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(218, 74, 14, 0.1),
+    inset 0 0 20px rgba(255, 255, 255, 0.3) !important;
+  border: 2px solid rgba(218, 74, 14, 0.3) !important;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  z-index: 1;
+}
+
+.whiteBox::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg,
+      #003C3F 0%,
+      /* Dark Cyan */
+      #005056 25%,
+      /* Cyan intermédiaire */
+      #DA4A0E 50%,
+      /* Vivid Orange */
+      #C43A0C 75%,
+      /* Orange foncé */
+      #003C3F 100%
+      /* Dark Cyan */
+    );
+  z-index: 2;
+}
+
+.whiteBox::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg,
+      transparent 30%,
+      rgba(218, 74, 14, 0.03) 50%,
+      transparent 70%);
+  animation: shimmer 8s infinite linear;
+  z-index: 0;
+}
+
+.itemBox {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 800;
+  color: transparent;
+  background: linear-gradient(90deg,
+      #003C3F 0%,
+      /* Dark Cyan */
+      #00666D 35%,
+      /* Cyan clair */
+      #DA4A0E 65%,
+      /* Vivid Orange */
+      #C43A0C 100%
+      /* Orange foncé */
+    );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  letter-spacing: -0.5px;
+  font-family: 'Montserrat', 'Roboto', sans-serif;
+}
+
+.title span {
+  font-size: 28px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #DA4A0E, #C43A0C);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.myForm,
+.myButton {
+  width: 100%;
+  height: 100%;
+}
+
+.myButton {
+  background: linear-gradient(135deg,
+      #003C3F 0%,
+      /* Dark Cyan */
+      #005056 30%,
+      /* Cyan intermédiaire */
+      #DA4A0E 70%,
+      /* Vivid Orange */
+      #C43A0C 100%
+      /* Orange foncé */
+    ) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    0 6px 20px rgba(0, 60, 63, 0.4),
+    0 0 0 1px rgba(218, 74, 14, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 14px 28px !important;
+  position: relative;
+  overflow: hidden;
+  border: none !important;
+}
+
+.myButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%);
+  transition: left 0.6s ease;
+}
+
+.myButton:hover {
+  background: linear-gradient(135deg,
+      #00474A 0%,
+      /* Dark Cyan plus clair */
+      #006066 30%,
+      /* Cyan intermédiaire plus clair */
+      #E85A20 70%,
+      /* Vivid Orange plus clair */
+      #D44B15 100%
+      /* Orange foncé plus clair */
+    ) !important;
+  box-shadow:
+    0 10px 30px rgba(218, 74, 14, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+}
+
+.myButton:hover::before {
+  left: 100%;
+}
+
+.myButton:active {
+  transform: translateY(-1px) scale(0.98) !important;
+  box-shadow:
+    0 4px 15px rgba(218, 74, 14, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.myButton:disabled {
+  background: linear-gradient(135deg,
+      rgba(0, 60, 63, 0.3) 0%,
+      rgba(218, 74, 14, 0.2) 100%) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  cursor: not-allowed !important;
+}
+
+/* Animation for background */
+@keyframes float {
+  0% {
+    transform: translate(0px, 0px) rotate(0deg);
+    opacity: 0.8;
+  }
+
+  33% {
+    transform: translate(-40px, 30px) rotate(120deg);
+    opacity: 0.9;
+  }
+
+  66% {
+    transform: translate(30px, -20px) rotate(240deg);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: translate(-50px, 40px) rotate(360deg);
+    opacity: 0.8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: rotate(0deg) translate(-50%, -50%);
+  }
+
+  100% {
+    transform: rotate(360deg) translate(-50%, -50%);
+  }
+}
+
+/* Input fields styling */
+.MuiOutlinedInput-root {
+  border-radius: 12px !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid rgba(0, 60, 63, 0.1) !important;
+}
+
+.MuiOutlinedInput-root:hover {
+  background-color: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 4px 12px rgba(0, 60, 63, 0.1) !important;
+}
+
+.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(218, 74, 14, 0.6) !important;
+  border-width: 2px !important;
+}
+
+.MuiOutlinedInput-root.Mui-focused {
+  background-color: rgba(255, 255, 255, 1) !important;
+  box-shadow:
+    0 6px 20px rgba(218, 74, 14, 0.2),
+    0 0 0 1px rgba(218, 74, 14, 0.1) !important;
+}
+
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #DA4A0E !important;
+  /* Vivid Orange */
+  border-width: 2px !important;
+  box-shadow: 0 0 0 2px rgba(218, 74, 14, 0.1) !important;
+}
+
+/* Label styling */
+.MuiInputLabel-root {
+  color: rgba(0, 60, 63, 0.7) !important;
+  font-weight: 500 !important;
+}
+
+.MuiInputLabel-root.Mui-focused {
+  color: #DA4A0E !important;
+  /* Vivid Orange */
+  font-weight: 600 !important;
+}
+
+/* Link styling */
+a {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  color: #003C3F !important;
+  /* Dark Cyan */
+  text-decoration: none !important;
+  font-weight: 500;
+  position: relative;
+}
+
+a:hover {
+  color: #DA4A0E !important;
+  /* Vivid Orange */
+  text-decoration: none !important;
+}
+
+a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #003C3F, #DA4A0E);
+  transition: width 0.3s ease;
+}
+
+a:hover::after {
+  width: 100%;
+}
+
+/* Checkbox styling */
+.MuiCheckbox-root {
+  color: rgba(0, 60, 63, 0.6) !important;
+}
+
+.MuiCheckbox-root.Mui-checked {
+  color: #DA4A0E !important;
+  /* Vivid Orange */
+}
+
+/* Divider styling */
+.MuiDivider-root {
+  margin: 24px 0 !important;
+}
+
+.MuiDivider-root::before,
+.MuiDivider-root::after {
+  border-color: rgba(218, 74, 14, 0.3) !important;
+}
+
+/* Text and typography */
+.text-muted {
+  color: rgba(0, 60, 63, 0.6) !important;
+}
+
+.text-primary {
+  color: #003C3F !important;
+  /* Dark Cyan */
+  font-weight: 600;
+}
+
+.text-accent {
+  color: #DA4A0E !important;
+  /* Vivid Orange */
+  font-weight: 600;
+}
+
+/* Custom shadow effects */
+.custom-shadow {
+  box-shadow:
+    0 10px 40px rgba(0, 60, 63, 0.15),
+    0 0 0 1px rgba(218, 74, 14, 0.05) !important;
+}
+
+/* Loading animation */
+.loading-dots {
+  display: inline-block;
+}
+
+.loading-dots::after {
+  content: '.';
+  animation: dots 1.5s steps(5, end) infinite;
+}
+
+@keyframes dots {
+
+  0%,
+  20% {
+    content: '.';
+  }
+
+  40% {
+    content: '..';
+  }
+
+  60%,
+  100% {
+    content: '...';
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .myBackground {
+    padding: 20px;
+  }
+
+  .whiteBox {
+    padding: 30px 20px;
+    min-width: 300px;
+    border-radius: 12px !important;
+  }
+
+  .title {
+    font-size: 26px;
+  }
+
+  .myButton {
+    padding: 12px 24px !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+/* Glass morphism effect for modern look */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 60, 63, 0.2);
+}
