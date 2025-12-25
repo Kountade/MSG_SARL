@@ -102,7 +102,7 @@ const Register = () =>{
             <Box className={"whiteBox"}>
 
                 <Box className={"itemBox"}>
-                    <Box className={"title"}> User registration </Box>
+                    <Box className={"title"}> Use registration </Box>
                 </Box>
 
                 <Box className={"itemBox"}>
