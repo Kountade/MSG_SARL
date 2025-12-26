@@ -58,7 +58,7 @@ const RapportPaiements = () => {
       setRapportData(response.data);
       setLoading(false);
     } catch (error) {
-      console.error('Erreur chargement rapport:', error);
+      console.error('Erreur chargement des rapport:', error);
       setLoading(false);
     }
   };
