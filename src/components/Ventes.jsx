@@ -656,26 +656,26 @@ const generatePDF = async (vente) => {
       
     } catch (error) {
       console.warn('Erreur avec le logo, utilisation du texte:', error);
-      doc.setFontSize(16);
+      doc.setFontSize(18); // Augmenté de 16 à 18
       doc.setFont('helvetica', 'bold');
       doc.text('MGS SARL', margins.left, yPosition + 8);
-      doc.setFontSize(10);
+      doc.setFontSize(11); // Augmenté de 10 à 11
       doc.setFont('helvetica', 'normal');
       doc.text('Gestion de Stock', margins.left, yPosition + 13);
     }
     
     // Informations société
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     doc.setFont('helvetica', 'bold');
     const infoSocieteX = pageWidth - margins.right - 60;
     doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX, yPosition);
     
-    doc.setFontSize(8);
+    doc.setFontSize(9); // Augmenté de 8 à 9
     doc.setFont('helvetica', 'normal');
-    doc.text('MGS SARL', infoSocieteX, yPosition + 5);
+    doc.text(' MSG SARL', infoSocieteX, yPosition + 5);
     doc.text('Adresse: VOTRE ADRESSE', infoSocieteX, yPosition + 9.5);
     doc.text('Tél: VOTRE TÉLÉPHONE', infoSocieteX, yPosition + 14);
-    doc.text('Email: mgs@entreprise.com', infoSocieteX, yPosition + 18.5);
+    doc.text('Email: mon@entreprise.com', infoSocieteX, yPosition + 18.5);
     
     yPosition += 25;
     
@@ -686,7 +686,7 @@ const generatePDF = async (vente) => {
     yPosition += 8;
     
     // Titre de la facture
-    doc.setFontSize(14);
+    doc.setFontSize(16); // Augmenté de 14 à 16
     doc.setFont('helvetica', 'bold');
     const statutVente = venteActualisee.statut === 'confirmee' && 
                        parseFloat(venteActualisee.montant_restant || 0) === 0 
@@ -695,7 +695,7 @@ const generatePDF = async (vente) => {
     yPosition += 6;
     
     // Informations facture
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     
     // DATE (à gauche)
     doc.setFont('helvetica', 'bold');
@@ -748,7 +748,7 @@ const generatePDF = async (vente) => {
     doc.setFillColor(60, 60, 60); // Gris foncé
     doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'F');
 
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255); // Texte blanc sur fond foncé
 
@@ -797,7 +797,7 @@ const generatePDF = async (vente) => {
     };
 
     // Lignes de produits avec meilleure lisibilité
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0); // Retour au texte noir
 
@@ -943,59 +943,56 @@ const generatePDF = async (vente) => {
     // Section des totaux (réduite et plus compacte)
     const totalSectionTop = yPosition;
     
-    // Calcul des totaux
+    // Calcul des totaux (SANS TVA)
     const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
     const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
     const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
-    const tva = totalHT * 0.2; // Exemple: TVA à 20%
-    const totalTTC = totalHT + tva;
+    // SUPPRESSION DE LA TVA
+    // const tva = totalHT * 0.2; // LIGNE SUPPRIMÉE
+    const totalTTC = totalHT; // Sans TVA, total TTC = total HT
     
     // Positionnement des totaux (colonne étroite à droite)
     const totalColX = pageWidth - margins.right - 60;
     const totalColWidth = 60;
     
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     
-    // Cadre des totaux
+    // Cadre des totaux - Hauteur réduite car pas de TVA
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.3);
-    doc.rect(totalColX, totalSectionTop, totalColWidth, 45, 'S');
+    doc.rect(totalColX, totalSectionTop, totalColWidth, 36, 'S'); // Hauteur réduite de 45 à 36 (45 - 8.75 pour la TVA)
     
-    // Lignes horizontales dans le cadre
+    // Lignes horizontales dans le cadre (une ligne de moins car pas de TVA)
     let currentY = totalSectionTop + 10;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) { // Changé de 4 à 3 lignes
       doc.line(totalColX, currentY, totalColX + totalColWidth, currentY);
-      currentY += 8.75;
+      currentY += 9; // Ajusté de 8.75 à 9
     }
     
     // Remplissage des totaux
     yPosition = totalSectionTop + 7;
     
-    // Total HT
+    // Total HT (devient TOTAL au lieu de Total HT)
     doc.setFont('helvetica', 'bold');
-    doc.text('Total HT:', totalColX + 5, yPosition);
+    doc.text('TOTAL HT:', totalColX + 5, yPosition);
     doc.text(`${formatNumber(totalHT)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 8.75;
+    yPosition += 9; // Ajusté de 8.75 à 9
     
-    // TVA
-    doc.setFont('helvetica', 'normal');
-    doc.text('TVA 20%:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(tva)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 8.75;
+    // SUPPRESSION DE LA LIGNE TVA
     
-    // Total TTC (en gras)
+    // Total TTC (en gras) - Devient "MONTANT TOTAL"
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('TOTAL TTC:', totalColX + 5, yPosition);
+    doc.setFontSize(11); // Augmenté de 10 à 11
+    doc.text('MONTANT TOTAL:', totalColX + 5, yPosition);
     doc.text(`${formatNumber(totalTTC)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 8.75;
+    yPosition += 9; // Ajusté de 8.75 à 9
     
     // Montant payé
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     doc.setFont('helvetica', 'normal');
     doc.text('Montant payé:', totalColX + 5, yPosition);
     doc.text(`${formatNumber(montantPaye)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 8.75;
+    yPosition += 9; // Ajusté de 8.75 à 9
     
     // Montant restant
     doc.text('Reste à payer:', totalColX + 5, yPosition);
@@ -1007,12 +1004,12 @@ const generatePDF = async (vente) => {
     
     yPosition = totalSectionTop;
     
-    doc.setFontSize(10);
+    doc.setFontSize(11); // Augmenté de 10 à 11
     doc.setFont('helvetica', 'bold');
     doc.text('INFORMATIONS CLIENT', clientSectionX, yPosition);
     yPosition += 7;
     
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Augmenté de 9 à 10
     
     // Dénomination
     doc.setFont('helvetica', 'bold');
@@ -1055,7 +1052,7 @@ const generatePDF = async (vente) => {
     
     // Pied de page professionnel
     const footerY = 280;
-    doc.setFontSize(8);
+    doc.setFontSize(9); // Augmenté de 8 à 9
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
     
@@ -1078,7 +1075,7 @@ const generatePDF = async (vente) => {
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(8);
+      doc.setFontSize(9); // Augmenté de 8 à 9
       doc.setTextColor(150, 150, 150);
       doc.text(`Page ${i}/${pageCount}`, pageWidth - margins.right, 290, { align: 'right' });
     }
@@ -1105,6 +1102,7 @@ const generatePDF = async (vente) => {
     return false;
   }
 };
+
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
