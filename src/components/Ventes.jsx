@@ -900,7 +900,7 @@ const generatePDF = async (vente) => {
         if (montantApresRemise > 0) {
           doc.setFont('helvetica', 'bold');
         }
-        doc.text(`${montantFormatted} €`, colPositions.montant + colWidths.montant - 3, yPosition + cellPaddingY, { align: 'right' });
+        doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 3, yPosition + cellPaddingY, { align: 'right' });
         
         if (montantApresRemise > 0) {
           doc.setFont('helvetica', 'normal');
@@ -991,12 +991,12 @@ const generatePDF = async (vente) => {
     doc.setFontSize(10); // Augmenté de 9 à 10
     doc.setFont('helvetica', 'normal');
     doc.text('Montant payé:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(montantPaye)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
     yPosition += 9; // Ajusté de 8.75 à 9
     
     // Montant restant
     doc.text('Reste à payer:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(montantRestant)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
     
     // Section client (à gauche des totaux)
     const clientSectionX = margins.left;
