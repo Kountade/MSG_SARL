@@ -23,6 +23,7 @@
     "react-hook-form": "^7.69.0",
     "react-router-dom": "^7.11.0",
     "recharts": "^3.6.0",
+    "svg2pdf.js": "^2.6.0",
     "yup": "^1.7.1"
   },
   "devDependencies": {

@@ -63,7 +63,7 @@ import {
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import logoImage from '../assets/logo.svg'
+import logo from '../assets/logo.png'
 
 const Ventes = () => {
   const [ventes, setVentes] = useState([])
@@ -575,286 +575,536 @@ const Ventes = () => {
   }
 
   // Générer un PDF
-  const generatePDF = async (vente) => {
-    try {
-      // Rafraîchir les données de la vente avant de générer le PDF
-      const venteActualisee = await refreshVenteDetails(vente.id) || vente
-      
-      if (!venteActualisee) {
-        setSnackbar({ 
-          open: true, 
-          message: 'Impossible de récupérer les données de la vente', 
-          severity: 'error' 
-        })
-        return false
-      }
+// Générer un PDF
+const generatePDF = async (vente) => {
+  try {
+    // Rafraîchir les données de la vente avant de générer le PDF
+    const venteActualisee = await refreshVenteDetails(vente.id) || vente;
+    
+    if (!venteActualisee) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Impossible de récupérer les données de la vente', 
+        severity: 'error' 
+      });
+      return false;
+    }
 
-      const doc = new jsPDF();
-      
-      // Configuration
-      const pageWidth = 210;
-      const margins = { left: 10, right: 10, top: 20, bottom: 40 };
-      const contentWidth = pageWidth - margins.left - margins.right;
-      
-      let yPosition = margins.top;
-      
-      // En-tête avec logo
-      try {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    
+    // Configuration
+    const pageWidth = 210;
+    const margins = { left: 10, right: 10, top: 15, bottom: 20 };
+    const contentWidth = pageWidth - margins.left - margins.right;
+    
+    let yPosition = margins.top;
+    
+    // Fonction pour créer une image à partir d'une URL
+    const loadImage = (url) => {
+      return new Promise((resolve, reject) => {
         const img = new Image();
-        img.src = logoImage;
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+    };
+    
+    // Logo - Essayer différents formats
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          canvas.width = Math.max(img.width || 100, 100);
+          canvas.height = Math.max(img.height || 100, 100);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataURL = canvas.toDataURL('image/png');
+          resolve(dataURL);
+        };
         
-        await new Promise((resolve) => {
-          img.onload = resolve;
-        });
+        img.onerror = () => {
+          canvas.width = 100;
+          canvas.height = 100;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#2c3e50';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 20px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('MGS', canvas.width/2, canvas.height/2 - 10);
+          ctx.font = 'bold 12px Arial';
+          ctx.fillText('SARL', canvas.width/2, canvas.height/2 + 10);
+          const dataURL = canvas.toDataURL('image/png');
+          resolve(dataURL);
+        };
         
-        const logoWidth = 35;
-        const logoHeight = 14;
-        doc.addImage(img, 'PNG', margins.left, yPosition, logoWidth, logoHeight);
-      } catch (error) {
-        console.warn('Logo non chargé:', error);
-      }
+        img.src = logo;
+      });
       
-      // Informations société
-      doc.setFontSize(8);
+      const logoImg = await loadImage(canvas.toDataURL('image/png'));
+      const logoWidth = 40;
+      const logoHeight = 15;
+      doc.addImage(logoImg, 'PNG', margins.left, yPosition, logoWidth, logoHeight);
+      
+    } catch (error) {
+      console.warn('Erreur avec le logo, utilisation du texte:', error);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Information de la société', pageWidth - margins.right - 60, yPosition);
-      
-      doc.setFontSize(7);
+      doc.text('MGS SARL', margins.left, yPosition + 8);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('Nom: MGS SARL', pageWidth - margins.right - 60, yPosition + 3);
-      doc.text('Adresse: LYMANYA', pageWidth - margins.right - 60, yPosition + 6);
-      doc.text('Tél: +225 05 45 05 75 18/05 05 79 51 75', pageWidth - margins.right - 60, yPosition + 9);
+      doc.text('Gestion de Stock', margins.left, yPosition + 13);
+    }
+    
+    // Informations société
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    const infoSocieteX = pageWidth - margins.right - 60;
+    doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX, yPosition);
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('MGS SARL', infoSocieteX, yPosition + 5);
+    doc.text('Adresse: VOTRE ADRESSE', infoSocieteX, yPosition + 9.5);
+    doc.text('Tél: VOTRE TÉLÉPHONE', infoSocieteX, yPosition + 14);
+    doc.text('Email: mgs@entreprise.com', infoSocieteX, yPosition + 18.5);
+    
+    yPosition += 25;
+    
+    // Ligne de séparation fine
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.1);
+    doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
+    yPosition += 8;
+    
+    // Titre de la facture
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    const statutVente = venteActualisee.statut === 'confirmee' && 
+                       parseFloat(venteActualisee.montant_restant || 0) === 0 
+                       ? 'SOLDE' : 'NON SOLDE';
+    doc.text(`FACTURE VENTE [${statutVente}]`, pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 6;
+    
+    // Informations facture
+    doc.setFontSize(9);
+    
+    // DATE (à gauche)
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATE :', margins.left, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
+    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), margins.left + 15, yPosition);
+    
+    // FACTURE N° (à droite)
+    doc.setFont('helvetica', 'bold');
+    const factureNumX = pageWidth - margins.right - 50;
+    doc.text('FACTURE N° :', factureNumX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    doc.text(venteActualisee.numero_vente || 'N/A', pageWidth - margins.right - 5, yPosition, { align: 'right' });
+    
+    yPosition += 5;
+    
+    // N° Client
+    doc.setFont('helvetica', 'bold');
+    doc.text('N° Client :', margins.left, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
+    doc.text(clientCode, margins.left + 25, yPosition);
+    
+    yPosition += 15;
+    
+    // Tableau des produits - Colonnes optimisées pour lisibilité
+    const colWidths = {
+      code: 20,
+      designation: 72,
+      qte: 15,
+      pu: 22,
+      remise: 18,
+      montant: 23
+    };
+
+    const colPositions = {
+      code: margins.left,
+      designation: margins.left + colWidths.code,
+      qte: margins.left + colWidths.code + colWidths.designation,
+      pu: margins.left + colWidths.code + colWidths.designation + colWidths.qte,
+      remise: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu,
+      montant: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu + colWidths.remise
+    };
+
+    const ligneHeight = 8; // Hauteur augmentée pour plus d'espace
+    const tableTop = yPosition;
+
+    // En-tête du tableau avec fond gris foncé pour contraste
+    doc.setFillColor(60, 60, 60); // Gris foncé
+    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'F');
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255); // Texte blanc sur fond foncé
+
+    // Bordures de l'en-tête
+    doc.setDrawColor(80, 80, 80);
+    doc.setLineWidth(0.3);
+    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
+
+    // Bordures verticales plus épaisses
+    doc.setDrawColor(100, 100, 100);
+    doc.setLineWidth(0.2);
+    doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
+    doc.line(colPositions.qte, tableTop, colPositions.qte, tableTop + ligneHeight);
+    doc.line(colPositions.pu, tableTop, colPositions.pu, tableTop + ligneHeight);
+    doc.line(colPositions.remise, tableTop, colPositions.remise, tableTop + ligneHeight);
+
+    // Texte de l'en-tête (centré verticalement)
+    const headerTextY = tableTop + 5;
+    doc.text('CODE', colPositions.code + (colWidths.code / 2), headerTextY, { align: 'center' });
+    doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), headerTextY, { align: 'center' });
+    doc.text('QTE', colPositions.qte + (colWidths.qte / 2), headerTextY, { align: 'center' });
+    doc.text('P.U HT', colPositions.pu + (colWidths.pu / 2), headerTextY, { align: 'center' });
+    doc.text('REMISE %', colPositions.remise + (colWidths.remise / 2), headerTextY, { align: 'center' });
+    doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), headerTextY, { align: 'center' });
+
+    yPosition = tableTop + ligneHeight;
+
+    // Fonction pour formater correctement les nombres français
+    const formatNombre = (nombre) => {
+      const num = parseFloat(nombre) || 0;
+      // Format manuel français pour garantir le bon formatage
+      const parts = num.toFixed(2).split('.');
+      const entier = parts[0];
+      const decimal = parts[1] || '00';
       
-      yPosition += 20;
+      // Ajouter des espaces pour séparer les milliers
+      const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
       
-      // Ligne de séparation
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.2);
-      doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
-      yPosition += 6;
-      
-      // Titre de la facture
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      const statutVente = venteActualisee.statut === 'confirmee' ? 'SOLDE' : 'NON SOLDE';
-      doc.text(`FACTURE VENTE [${statutVente}]`, pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 5;
-      
-      // Informations facture
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`DATE : ${new Date(venteActualisee.created_at).toLocaleDateString('fr-FR')}`, margins.left, yPosition);
-      doc.text(`FACTURE N° : ${venteActualisee.numero_vente || 'N/A'}`, pageWidth - margins.right - 5, yPosition, { align: 'right' });
-      yPosition += 4;
-      
-      const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(10, '0') || '0000000000'}`;
-      doc.text(`N° Client : ${clientCode}`, margins.left, yPosition);
-      yPosition += 6;
-      
-      // Informations client
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text('CLIENT', margins.left, yPosition);
-      yPosition += 4;
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      
-      if (venteActualisee.client_nom) {
-        doc.text(`Dénomination : ${venteActualisee.client_nom}`, margins.left, yPosition);
-        yPosition += 3.5;
-      }
-      
-      if (venteActualisee.client_telephone) {
-        doc.text(`Mobil : ${venteActualisee.client_telephone}`, margins.left, yPosition);
-        yPosition += 3.5;
-      }
-      
-      const email = venteActualisee.client_email || '';
-      doc.text(`Email : ${email}`, margins.left, yPosition);
-      yPosition += 8;
-      
-      // Ligne de séparation avant tableau
-      doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
-      yPosition += 5;
-      
-      // Tableau des produits
-      const colWidths = {
-        code: 20,
-        designation: 75,
-        qte: 15,
-        pu: 25,
-        remise: 25,
-        montant: 30
-      };
-      
-      const colPositions = {
-        code: margins.left,
-        designation: margins.left + colWidths.code,
-        qte: margins.left + colWidths.code + colWidths.designation,
-        pu: margins.left + colWidths.code + colWidths.designation + colWidths.qte,
-        remise: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu,
-        montant: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu + colWidths.remise
-      };
-      
-      const ligneHeight = 6;
-      
-      // En-tête du tableau
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.2);
-      doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-      
-      doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
-      doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
-      doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
-      doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      
-      doc.text('Code', colPositions.code + (colWidths.code / 2), yPosition + 4, { align: 'center' });
-      doc.text('Designation', colPositions.designation + (colWidths.designation / 2), yPosition + 4, { align: 'center' });
-      doc.text('Qte', colPositions.qte + (colWidths.qte / 2), yPosition + 4, { align: 'center' });
-      doc.text('PU', colPositions.pu + (colWidths.pu / 2), yPosition + 4, { align: 'center' });
-      doc.text('Remise', colPositions.remise + (colWidths.remise / 2), yPosition + 4, { align: 'center' });
-      doc.text('Montant', colPositions.montant + (colWidths.montant / 2), yPosition + 4, { align: 'center' });
-      
-      yPosition += ligneHeight;
-      
-      // Lignes de produits
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      
-      let totalProduits = 0;
-      
-      if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
-        venteActualisee.lignes_vente.forEach((ligne, index) => {
-          // Vérifier si besoin d'une nouvelle page
-          if (yPosition + ligneHeight > 270) {
-            doc.addPage();
-            yPosition = margins.top;
-          }
+      return `${entierFormate},${decimal}`;
+    };
+
+    // Fonction pour formater les pourcentages
+    const formatPourcentage = (pourcentage) => {
+      const num = parseFloat(pourcentage) || 0;
+      return num.toFixed(1).replace('.', ',') + ' %';
+    };
+
+    // Lignes de produits avec meilleure lisibilité
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0); // Retour au texte noir
+
+    if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
+      venteActualisee.lignes_vente.forEach((ligne, index) => {
+        // Vérifier si besoin d'une nouvelle page
+        if (yPosition + ligneHeight > 270) {
+          doc.addPage();
+          yPosition = margins.top + 15;
           
-          const quantite = parseInt(ligne.quantite) || 0;
-          const prixUnitaire = parseFloat(ligne.prix_unitaire) || 0;
-          const sousTotal = quantite * prixUnitaire;
-          totalProduits += sousTotal;
+          // Redessiner l'en-tête du tableau sur la nouvelle page
+          doc.setFillColor(60, 60, 60);
+          doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.text('CODE', colPositions.code + (colWidths.code / 2), yPosition + 5, { align: 'center' });
+          doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), yPosition + 5, { align: 'center' });
+          doc.text('QTE', colPositions.qte + (colWidths.qte / 2), yPosition + 5, { align: 'center' });
+          doc.text('P.U HT', colPositions.pu + (colWidths.pu / 2), yPosition + 5, { align: 'center' });
+          doc.text('REMISE %', colPositions.remise + (colWidths.remise / 2), yPosition + 5, { align: 'center' });
+          doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 5, { align: 'center' });
           
-          const codeProduit = ligne.produit_code || ligne.produit_id || `PROD${index + 1}`;
-          const nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
-          const entrepot = ligne.entrepot_nom ? `(${ligne.entrepot_nom})` : '';
-          
-          let displayDesignation = nomProduit;
-          if (entrepot) {
-            displayDesignation = `${nomProduit} ${entrepot}`;
-          }
-          if (displayDesignation.length > 45) {
-            displayDesignation = displayDesignation.substring(0, 42) + '...';
-          }
-          
-          // Dessiner le cadre de la ligne
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.1);
+          doc.setDrawColor(80, 80, 80);
+          doc.setLineWidth(0.3);
           doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+          doc.setDrawColor(100, 100, 100);
+          doc.setLineWidth(0.2);
           doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
           doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
           doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
           doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
           
-          // Remplir les cellules
-          doc.text(codeProduit.toString().substring(0, 10), colPositions.code + 2, yPosition + 4);
-          doc.text(displayDesignation, colPositions.designation + 2, yPosition + 4);
-          doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + 4, { align: 'center' });
-          
-          const puFormatted = prixUnitaire.toFixed(1).replace('.', ',');
-          const montantFormatted = sousTotal.toFixed(1).replace('.', ',');
-          
-          doc.text(puFormatted, colPositions.pu + colWidths.pu - 2, yPosition + 4, { align: 'right' });
-          doc.text('0,0', colPositions.remise + colWidths.remise - 2, yPosition + 4, { align: 'right' });
-          doc.text(montantFormatted, colPositions.montant + colWidths.montant - 2, yPosition + 4, { align: 'right' });
-          
           yPosition += ligneHeight;
-        });
-      }
-      
-      yPosition += 5;
-      
-      // Récapitulatif
-      const remiseTotal = parseFloat(venteActualisee.remise || 0);
-      const montantHorsTaxe = Math.max(0, totalProduits - remiseTotal);
-      const tauxTVA = 0.2;
-      const tva = montantHorsTaxe * tauxTVA;
-      const totalTTC = montantHorsTaxe + tva;
-      
-      const recapWidth = 80;
-      const recapHeight = 20;
-      const recapX = pageWidth - margins.right - recapWidth;
-      const recapY = Math.max(yPosition, 180);
-      
-      // Dessiner le cadre
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.2);
-      doc.rect(recapX, recapY, recapWidth, recapHeight, 'S');
-      
-      // Lignes horizontales
-      doc.line(recapX, recapY + 7, recapX + recapWidth, recapY + 7);
-      doc.line(recapX, recapY + 14, recapX + recapWidth, recapY + 14);
-      
-      // Contenu
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      
-      doc.text('Montant TTC', recapX + 5, recapY + 5);
-      doc.text(totalTTC.toFixed(1).replace('.', ','), recapX + recapWidth - 5, recapY + 5, { align: 'right' });
-      
-      doc.text('Remise', recapX + 5, recapY + 12);
-      doc.text(remiseTotal.toFixed(1).replace('.', ','), recapX + recapWidth - 5, recapY + 12, { align: 'right' });
-      
-      doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
-      doc.text('Net A Payer', recapX + 5, recapY + 19);
-      doc.text((totalTTC - remiseTotal).toFixed(1).replace('.', ','), recapX + recapWidth - 5, recapY + 19, { align: 'right' });
-      
-      // Pied de page
-      const footerY = 280;
-      doc.setFontSize(6);
-      doc.setTextColor(158, 158, 158);
-      doc.setFont('helvetica', 'normal');
-      
-      doc.text('MGS SARL - LYMANYA - Tél: +225 05 45 05 75 18/05 05 79 51 75', pageWidth / 2, footerY, { align: 'center' });
-      doc.text(`Document généré le ${new Date().toLocaleDateString('fr-FR')}`, pageWidth / 2, footerY + 3, { align: 'center' });
-      
-      // Numéro de page
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(6);
-        doc.setTextColor(158, 158, 158);
-        doc.text(`Page ${i}/${pageCount}`, pageWidth - 5, 290, { align: 'right' });
-      }
-      
-      // Sauvegarde
-      const fileName = `facture-${venteActualisee.numero_vente || 'sans-numero'}.pdf`;
-      doc.save(fileName);
-      
-      setSnackbar({ 
-        open: true, 
-        message: 'Facture PDF générée avec succès', 
-        severity: 'success' 
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+        }
+        
+        const quantite = parseInt(ligne.quantite) || 0;
+        const prixUnitaire = parseFloat(ligne.prix_unitaire) || 0;
+        const remisePourcentage = parseFloat(ligne.remise) || 0;
+        const montantApresRemise = quantite * prixUnitaire * (1 - remisePourcentage / 100);
+        
+        // Code produit
+        const codeProduit = ligne.produit_code || ligne.produit_id || 
+                           `PROD${(index + 1).toString().padStart(3, '0')}`;
+        
+        // Nom du produit avec entrepôt
+        let nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
+        const entrepot = ligne.entrepot_nom || ligne.entrepot || '';
+        if (entrepot) {
+          nomProduit += ` (${entrepot})`;
+        }
+        
+        // Formater les nombres
+        const puFormatted = formatNombre(prixUnitaire);
+        const montantFormatted = formatNombre(montantApresRemise);
+        const remiseFormatted = formatPourcentage(remisePourcentage);
+        
+        // Alternance de couleurs pour les lignes (plus contrastée)
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 248, 248); // Gris très clair
+        } else {
+          doc.setFillColor(255, 255, 255); // Blanc
+        }
+        doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
+        
+        // Bordures de la ligne (plus visibles)
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.15);
+        doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+        doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
+        doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
+        doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
+        doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
+        
+        // Contenu des cellules (plus espacé)
+        const cellPaddingY = 5;
+        
+        // Code (centré)
+        doc.text(codeProduit.toString(), colPositions.code + (colWidths.code / 2), yPosition + cellPaddingY, { align: 'center' });
+        
+        // Désignation (avec troncature si trop long)
+        let designationAffichee = nomProduit;
+        const maxCaracteres = 50;
+        if (designationAffichee.length > maxCaracteres) {
+          designationAffichee = designationAffichee.substring(0, maxCaracteres - 3) + '...';
+        }
+        doc.text(designationAffichee, colPositions.designation + 3, yPosition + cellPaddingY);
+        
+        // Quantité (centré)
+        doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
+        
+        // Prix unitaire (aligné à droite) - FORMATAGE CORRIGÉ
+        doc.text(`${puFormatted} €`, colPositions.pu + colWidths.pu - 3, yPosition + cellPaddingY, { align: 'right' });
+        
+        // Remise (aligné à droite) - FORMATAGE CORRIGÉ
+        doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 3, yPosition + cellPaddingY, { align: 'right' });
+        
+        // Montant (aligné à droite, en gras si montant > 0) - FORMATAGE CORRIGÉ
+        if (montantApresRemise > 0) {
+          doc.setFont('helvetica', 'bold');
+        }
+        doc.text(`${montantFormatted} €`, colPositions.montant + colWidths.montant - 3, yPosition + cellPaddingY, { align: 'right' });
+        
+        if (montantApresRemise > 0) {
+          doc.setFont('helvetica', 'normal');
+        }
+        
+        yPosition += ligneHeight;
       });
-      
-      return true;
-      
-    } catch (error) {
-      console.error('Erreur lors de la génération du PDF:', error);
-      setSnackbar({ 
-        open: true, 
-        message: 'Erreur lors de la génération du PDF', 
-        severity: 'error' 
-      });
-      return false;
+    } else {
+      // Si pas de lignes de vente
+      doc.setFillColor(255, 255, 255);
+      doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
+      doc.setDrawColor(220, 220, 220);
+      doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+      doc.setTextColor(150, 150, 150);
+      doc.text('Aucun produit dans cette vente', margins.left + contentWidth / 2, yPosition + 4, { align: 'center' });
+      yPosition += ligneHeight;
     }
-  };
+
+    // Ligne de séparation après le tableau
+    yPosition += 5;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
+    yPosition += 10;
+    
+    // Fonction pour formater les nombres pour les totaux - VERSION CORRIGÉE
+    const formatNumber = (num) => {
+      const number = parseFloat(num) || 0;
+      // Format manuel français pour garantir le bon formatage
+      const parts = number.toFixed(2).split('.');
+      const entier = parts[0];
+      const decimal = parts[1] || '00';
+      
+      // Ajouter des espaces pour séparer les milliers
+      const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      
+      return `${entierFormate},${decimal}`;
+    };
+    
+    // Section des totaux (réduite et plus compacte)
+    const totalSectionTop = yPosition;
+    
+    // Calcul des totaux
+    const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
+    const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
+    const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
+    const tva = totalHT * 0.2; // Exemple: TVA à 20%
+    const totalTTC = totalHT + tva;
+    
+    // Positionnement des totaux (colonne étroite à droite)
+    const totalColX = pageWidth - margins.right - 60;
+    const totalColWidth = 60;
+    
+    doc.setFontSize(9);
+    
+    // Cadre des totaux
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.rect(totalColX, totalSectionTop, totalColWidth, 45, 'S');
+    
+    // Lignes horizontales dans le cadre
+    let currentY = totalSectionTop + 10;
+    for (let i = 0; i < 4; i++) {
+      doc.line(totalColX, currentY, totalColX + totalColWidth, currentY);
+      currentY += 8.75;
+    }
+    
+    // Remplissage des totaux
+    yPosition = totalSectionTop + 7;
+    
+    // Total HT
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total HT:', totalColX + 5, yPosition);
+    doc.text(`${formatNumber(totalHT)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    yPosition += 8.75;
+    
+    // TVA
+    doc.setFont('helvetica', 'normal');
+    doc.text('TVA 20%:', totalColX + 5, yPosition);
+    doc.text(`${formatNumber(tva)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    yPosition += 8.75;
+    
+    // Total TTC (en gras)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('TOTAL TTC:', totalColX + 5, yPosition);
+    doc.text(`${formatNumber(totalTTC)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    yPosition += 8.75;
+    
+    // Montant payé
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Montant payé:', totalColX + 5, yPosition);
+    doc.text(`${formatNumber(montantPaye)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    yPosition += 8.75;
+    
+    // Montant restant
+    doc.text('Reste à payer:', totalColX + 5, yPosition);
+    doc.text(`${formatNumber(montantRestant)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    
+    // Section client (à gauche des totaux)
+    const clientSectionX = margins.left;
+    const clientSectionWidth = totalColX - margins.left - 10;
+    
+    yPosition = totalSectionTop;
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('INFORMATIONS CLIENT', clientSectionX, yPosition);
+    yPosition += 7;
+    
+    doc.setFontSize(9);
+    
+    // Dénomination
+    doc.setFont('helvetica', 'bold');
+    doc.text('Dénomination :', clientSectionX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
+    doc.text(clientNom, clientSectionX + 25, yPosition);
+    yPosition += 5;
+    
+    // Adresse
+    doc.setFont('helvetica', 'bold');
+    doc.text('Adresse :', clientSectionX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
+    doc.text(clientAdresse, clientSectionX + 25, yPosition);
+    yPosition += 5;
+    
+    // Téléphone
+    doc.setFont('helvetica', 'bold');
+    doc.text('Téléphone :', clientSectionX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
+    doc.text(clientTel, clientSectionX + 25, yPosition);
+    yPosition += 5;
+    
+    // Email
+    doc.setFont('helvetica', 'bold');
+    doc.text('Email :', clientSectionX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
+    doc.text(clientEmail, clientSectionX + 25, yPosition);
+    yPosition += 5;
+    
+    // Mode de paiement
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mode de paiement :', clientSectionX, yPosition);
+    doc.setFont('helvetica', 'normal');
+    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
+    doc.text(modePaiement, clientSectionX + 35, yPosition);
+    
+    // Pied de page professionnel
+    const footerY = 280;
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'normal');
+    
+    // Ligne de séparation du footer
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.line(margins.left, footerY - 5, pageWidth - margins.right, footerY - 5);
+    
+    // Informations de bas de page
+    doc.text('MGS SARL - Capital social: XX XXX € - RCS: XXXXXX - SIRET: XXX XXX XXX XXXXX - TVA: FRXX XXXXXXX', 
+             pageWidth / 2, footerY, { align: 'center' });
+    
+    doc.text('Adresse: Votre adresse complète - Tél: XX XX XX XX XX - Email: contact@mgs-sarl.com', 
+             pageWidth / 2, footerY + 4, { align: 'center' });
+    
+    doc.text(`Facture générée électroniquement le ${new Date().toLocaleDateString('fr-FR')} - Valide sans signature`, 
+             pageWidth / 2, footerY + 8, { align: 'center' });
+    
+    // Numéro de page
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i}/${pageCount}`, pageWidth - margins.right, 290, { align: 'right' });
+    }
+    
+    // Sauvegarde
+    const fileName = `Facture-${venteActualisee.numero_vente || venteActualisee.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(fileName);
+    
+    setSnackbar({ 
+      open: true, 
+      message: 'Facture PDF générée avec succès', 
+      severity: 'success' 
+    });
+    
+    return true;
+    
+  } catch (error) {
+    console.error('Erreur lors de la génération du PDF:', error);
+    setSnackbar({ 
+      open: true, 
+      message: 'Erreur lors de la génération du PDF', 
+      severity: 'error' 
+    });
+    return false;
+  }
+};
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
