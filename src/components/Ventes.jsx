@@ -689,8 +689,8 @@ const generatePDF = async (vente) => {
     doc.setFont('helvetica', 'bold');
     const statutVente = venteActualisee.statut === 'confirmee' && 
                        parseFloat(venteActualisee.montant_restant || 0) === 0 
-                       ? 'SOLDE' : 'NON SOLDE';
-    doc.text(`FACTURE VENTE [${statutVente}]`, pageWidth / 2, yPosition, { align: 'center' });
+                       ? 'SOLDÉ' : 'NON SOLDÉ';
+    doc.text(`FACTURE VENTE ${statutVente}`, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 6;
     
     // Informations facture
