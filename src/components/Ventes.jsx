@@ -723,12 +723,12 @@ const generatePDF = async (vente) => {
     
     // Tableau des produits - CHANGEMENT IMPORTANT ICI : colonnes "REMISE" et "MONTANT" mieux séparées
     const colWidths = {
-      code: 30,
-      designation: 70, // Réduit légèrement pour plus d'espace pour "MONTANT"
+      code: 35,
+      designation: 60, // Réduit légèrement pour plus d'espace pour "MONTANT"
       qte: 15,
-      pu: 20, // Réduit pour faire de la place
+      pu: 28, // Réduit pour faire de la place
       remise: 23, // Largement suffisant pour "REMISE %"
-      montant: 27 // AUGMENTÉ pour plus d'espace, était 23
+      montant: 30 // AUGMENTÉ pour plus d'espace, était 23
     };
 
     const colPositions = {
