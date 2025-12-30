@@ -669,12 +669,12 @@ const generatePDF = async (vente) => {
     const infoSocieteX = pageWidth - margins.right - 60;
     doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX, yPosition);
     
-    doc.setFontSize(9); // Augmenté de 8 à 9
+    doc.setFontSize(10); // Augmenté de 8 à 9
     doc.setFont('helvetica', 'normal');
-    doc.text(' MSG SARL', infoSocieteX, yPosition + 5);
-    doc.text('Adresse: VOTRE ADRESSE', infoSocieteX, yPosition + 9.5);
-    doc.text('Tél: VOTRE TÉLÉPHONE', infoSocieteX, yPosition + 14);
-    doc.text('Email: mon@entreprise.com', infoSocieteX, yPosition + 18.5);
+    doc.text('Nom: MSG SARL', infoSocieteX, yPosition + 5);
+    doc.text('Adresse: LYMANYA', infoSocieteX, yPosition + 9.5);
+    doc.text('Tél: +225 05 45 75 18 / 05 79 51 75', infoSocieteX, yPosition + 14);
+    doc.text('Email: jallowrimkaz@gmail.com', infoSocieteX, yPosition + 18.5);
     
     yPosition += 25;
     
@@ -728,7 +728,7 @@ const generatePDF = async (vente) => {
       qte: 15,
       pu: 28, // Réduit pour faire de la place
       remise: 23, // Largement suffisant pour "REMISE %"
-      montant: 30 // AUGMENTÉ pour plus d'espace, était 23
+      montant: 35 // AUGMENTÉ pour plus d'espace, était 23
     };
 
     const colPositions = {
@@ -893,7 +893,7 @@ const generatePDF = async (vente) => {
         doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
         
         // Prix unitaire (aligné à droite) - ESPACE AUGMENTÉ
-        doc.text(`${puFormatted} €`, colPositions.pu + colWidths.pu - 3, yPosition + cellPaddingY, { align: 'right' });
+        doc.text(`${puFormatted} CFA`, colPositions.pu + colWidths.pu - 3, yPosition + cellPaddingY, { align: 'right' });
         
         // Remise (aligné à droite) - ESPACE AUGMENTÉ et plus clair
         doc.setTextColor(80, 80, 80); // Gris pour la remise
@@ -955,8 +955,8 @@ const generatePDF = async (vente) => {
     const totalTTC = totalHT; // Sans TVA, total TTC = total HT
     
     // Positionnement des totaux - AUGMENTATION DE LA LARGEUR
-    const totalColX = pageWidth - margins.right - 90; // Déplacé plus à droite pour plus d'espace
-    const totalColWidth = 90; // AUGMENTÉ de 60 à 70 mm pour plus d'espace
+    const totalColX = pageWidth - margins.right - 95; // Déplacé plus à droite pour plus d'espace
+    const totalColWidth = 95; // AUGMENTÉ de 60 à 70 mm pour plus d'espace
     
     doc.setFontSize(11); // Augmenté de 10 à 11 pour les libellés
     
