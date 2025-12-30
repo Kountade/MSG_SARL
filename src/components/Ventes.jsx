@@ -771,7 +771,7 @@ const generatePDF = async (vente) => {
     doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), headerTextY, { align: 'center' });
     doc.text('QTE', colPositions.qte + (colWidths.qte / 2), headerTextY, { align: 'center' });
     doc.text('P.U HT', colPositions.pu + (colWidths.pu / 2), headerTextY, { align: 'center' });
-    doc.text('REMISE %', colPositions.remise + (colWidths.remise / 2), headerTextY, { align: 'center' });
+    doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), headerTextY, { align: 'center' });
     doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), headerTextY, { align: 'center' });
 
     yPosition = tableTop + ligneHeight;
@@ -793,7 +793,7 @@ const generatePDF = async (vente) => {
     // Fonction pour formater les pourcentages
     const formatPourcentage = (pourcentage) => {
       const num = parseFloat(pourcentage) || 0;
-      return num.toFixed(1).replace('.', ',') + ' %';
+      return num.toFixed(1).replace('.', ',') + '';
     };
 
     // Lignes de produits avec meilleure lisibilité et espacement
@@ -816,8 +816,8 @@ const generatePDF = async (vente) => {
           doc.text('CODE', colPositions.code + (colWidths.code / 2), yPosition + 5, { align: 'center' });
           doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), yPosition + 5, { align: 'center' });
           doc.text('QTE', colPositions.qte + (colWidths.qte / 2), yPosition + 5, { align: 'center' });
-          doc.text('P.U HT', colPositions.pu + (colWidths.pu / 2), yPosition + 5, { align: 'center' });
-          doc.text('REMISE %', colPositions.remise + (colWidths.remise / 2), yPosition + 5, { align: 'center' });
+          doc.text('P.U', colPositions.pu + (colWidths.pu / 2), yPosition + 5, { align: 'center' });
+          doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), yPosition + 5, { align: 'center' });
           doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 5, { align: 'center' });
           
           doc.setDrawColor(80, 80, 80);
