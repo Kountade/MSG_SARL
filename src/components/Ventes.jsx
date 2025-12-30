@@ -575,7 +575,6 @@ const Ventes = () => {
   }
 
   // Générer un PDF
-// Générer un PDF
 const generatePDF = async (vente) => {
   try {
     // Rafraîchir les données de la vente avant de générer le PDF
@@ -722,14 +721,14 @@ const generatePDF = async (vente) => {
     
     yPosition += 15;
     
-    // Tableau des produits - Colonnes optimisées pour lisibilité
+    // Tableau des produits - CHANGEMENT IMPORTANT ICI : colonnes "REMISE" et "MONTANT" mieux séparées
     const colWidths = {
-      code: 20,
-      designation: 72,
+      code: 30,
+      designation: 70, // Réduit légèrement pour plus d'espace pour "MONTANT"
       qte: 15,
-      pu: 22,
-      remise: 18,
-      montant: 23
+      pu: 20, // Réduit pour faire de la place
+      remise: 23, // Largement suffisant pour "REMISE %"
+      montant: 27 // AUGMENTÉ pour plus d'espace, était 23
     };
 
     const colPositions = {
@@ -757,13 +756,14 @@ const generatePDF = async (vente) => {
     doc.setLineWidth(0.3);
     doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
 
-    // Bordures verticales plus épaisses
+    // Bordures verticales plus épaisses - AJOUT d'une bordure supplémentaire avant "MONTANT"
     doc.setDrawColor(100, 100, 100);
     doc.setLineWidth(0.2);
     doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
     doc.line(colPositions.qte, tableTop, colPositions.qte, tableTop + ligneHeight);
     doc.line(colPositions.pu, tableTop, colPositions.pu, tableTop + ligneHeight);
     doc.line(colPositions.remise, tableTop, colPositions.remise, tableTop + ligneHeight);
+    doc.line(colPositions.montant - 1, tableTop, colPositions.montant - 1, tableTop + ligneHeight); // Ligne avant "MONTANT"
 
     // Texte de l'en-tête (centré verticalement)
     const headerTextY = tableTop + 5;
@@ -796,7 +796,7 @@ const generatePDF = async (vente) => {
       return num.toFixed(1).replace('.', ',') + ' %';
     };
 
-    // Lignes de produits avec meilleure lisibilité
+    // Lignes de produits avec meilleure lisibilité et espacement
     doc.setFontSize(10); // Augmenté de 9 à 10
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0); // Retour au texte noir
@@ -829,6 +829,7 @@ const generatePDF = async (vente) => {
           doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
           doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
           doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
+          doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
           
           yPosition += ligneHeight;
           doc.setFont('helvetica', 'normal');
@@ -864,7 +865,7 @@ const generatePDF = async (vente) => {
         }
         doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
         
-        // Bordures de la ligne (plus visibles)
+        // Bordures de la ligne (plus visibles) - AJOUT de la bordure supplémentaire
         doc.setDrawColor(220, 220, 220);
         doc.setLineWidth(0.15);
         doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
@@ -872,6 +873,7 @@ const generatePDF = async (vente) => {
         doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
         doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
         doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
+        doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight); // Ligne avant "MONTANT"
         
         // Contenu des cellules (plus espacé)
         const cellPaddingY = 5;
@@ -881,7 +883,7 @@ const generatePDF = async (vente) => {
         
         // Désignation (avec troncature si trop long)
         let designationAffichee = nomProduit;
-        const maxCaracteres = 50;
+        const maxCaracteres = 45; // Légèrement réduit car colonne réduite
         if (designationAffichee.length > maxCaracteres) {
           designationAffichee = designationAffichee.substring(0, maxCaracteres - 3) + '...';
         }
@@ -890,17 +892,20 @@ const generatePDF = async (vente) => {
         // Quantité (centré)
         doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
         
-        // Prix unitaire (aligné à droite) - FORMATAGE CORRIGÉ
+        // Prix unitaire (aligné à droite) - ESPACE AUGMENTÉ
         doc.text(`${puFormatted} €`, colPositions.pu + colWidths.pu - 3, yPosition + cellPaddingY, { align: 'right' });
         
-        // Remise (aligné à droite) - FORMATAGE CORRIGÉ
+        // Remise (aligné à droite) - ESPACE AUGMENTÉ et plus clair
+        doc.setTextColor(80, 80, 80); // Gris pour la remise
         doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 3, yPosition + cellPaddingY, { align: 'right' });
+        doc.setTextColor(0, 0, 0); // Retour au noir
         
-        // Montant (aligné à droite, en gras si montant > 0) - FORMATAGE CORRIGÉ
+        // Montant (aligné à droite, en gras si montant > 0) - PLUS D'ESPACE
         if (montantApresRemise > 0) {
           doc.setFont('helvetica', 'bold');
         }
-        doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 3, yPosition + cellPaddingY, { align: 'right' });
+        // Ajouter un espace supplémentaire après "REMISE" avant "MONTANT"
+        doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 5, yPosition + cellPaddingY, { align: 'right' });
         
         if (montantApresRemise > 0) {
           doc.setFont('helvetica', 'normal');
@@ -926,7 +931,7 @@ const generatePDF = async (vente) => {
     doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
     yPosition += 10;
     
-    // Fonction pour formater les nombres pour les totaux - VERSION CORRIGÉE
+    // Fonction pour formater les nombres pour les totaux
     const formatNumber = (num) => {
       const number = parseFloat(num) || 0;
       // Format manuel français pour garantir le bon formatage
@@ -940,67 +945,81 @@ const generatePDF = async (vente) => {
       return `${entierFormate},${decimal}`;
     };
     
-    // Section des totaux (réduite et plus compacte)
+    // Section des totaux - AUGMENTATION DE LA TAILLE DU TABLEAU
     const totalSectionTop = yPosition;
     
     // Calcul des totaux (SANS TVA)
     const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
     const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
     const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
-    // SUPPRESSION DE LA TVA
-    // const tva = totalHT * 0.2; // LIGNE SUPPRIMÉE
     const totalTTC = totalHT; // Sans TVA, total TTC = total HT
     
-    // Positionnement des totaux (colonne étroite à droite)
-    const totalColX = pageWidth - margins.right - 60;
-    const totalColWidth = 60;
+    // Positionnement des totaux - AUGMENTATION DE LA LARGEUR
+    const totalColX = pageWidth - margins.right - 90; // Déplacé plus à droite pour plus d'espace
+    const totalColWidth = 90; // AUGMENTÉ de 60 à 70 mm pour plus d'espace
     
-    doc.setFontSize(10); // Augmenté de 9 à 10
+    doc.setFontSize(11); // Augmenté de 10 à 11 pour les libellés
     
-    // Cadre des totaux - Hauteur réduite car pas de TVA
+    // Cadre des totaux - AUGMENTATION DE LA HAUTEUR
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    doc.rect(totalColX, totalSectionTop, totalColWidth, 36, 'S'); // Hauteur réduite de 45 à 36 (45 - 8.75 pour la TVA)
+    doc.setLineWidth(0.5); // Bordure plus épaisse
+    const totalBoxHeight = 42; // AUGMENTÉ de 36 à 42 mm pour plus d'espace
+    doc.rect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, 'S');
     
-    // Lignes horizontales dans le cadre (une ligne de moins car pas de TVA)
-    let currentY = totalSectionTop + 10;
-    for (let i = 0; i < 3; i++) { // Changé de 4 à 3 lignes
+    // Lignes horizontales dans le cadre - ESPACEMENT AUGMENTÉ
+    let currentY = totalSectionTop + 12; // Commence plus bas
+    for (let i = 0; i < 3; i++) { // 3 lignes seulement (sans TVA)
       doc.line(totalColX, currentY, totalColX + totalColWidth, currentY);
-      currentY += 9; // Ajusté de 8.75 à 9
+      currentY += 10.5; // AUGMENTÉ de 9 à 10.5 mm pour plus d'espace
     }
     
-    // Remplissage des totaux
-    yPosition = totalSectionTop + 7;
+    // Remplissage des totaux - POLICES AUGMENTÉES
+    yPosition = totalSectionTop + 9; // Position verticale ajustée
     
-    // Total HT (devient TOTAL au lieu de Total HT)
+    // TOTAL HT (devient "TOTAL HT")
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL HT:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(totalHT)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 9; // Ajusté de 8.75 à 9
+    doc.setFontSize(11); // Augmenté pour le libellé
+    doc.text('TOTAL HT:', totalColX + 6, yPosition); // Décalé pour plus d'espace
+    doc.setFontSize(12); // Augmenté pour la valeur
+    doc.text(`${formatNumber(totalHT)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+    yPosition += 10.5; // Espacement augmenté
     
-    // SUPPRESSION DE LA LIGNE TVA
-    
-    // Total TTC (en gras) - Devient "MONTANT TOTAL"
+    // MONTANT TOTAL (plus grand et plus visible) - CORRECTION ICI : ESPACE AJOUTÉ
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11); // Augmenté de 10 à 11
-    doc.text('MONTANT TOTAL:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(totalTTC)} €`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 9; // Ajusté de 8.75 à 9
+    doc.setFontSize(12); // Augmenté pour le libellé
+    
+    // CHANGEMENT IMPORTANT : Séparer le texte en deux parties pour ajouter un espace
+    const montantTotalLabel = 'MONTANT TOTAL:';
+    const montantTotalValue = `${formatNumber(totalTTC)} CFA`;
+    
+    // Afficher le libellé à gauche
+    doc.text(montantTotalLabel, totalColX + 6, yPosition);
+    
+    // Afficher la valeur à droite avec plus d'espace
+    doc.setFontSize(14); // AUGMENTÉ pour la valeur
+    doc.setTextColor(0, 0, 0); // Noir pour la visibilité
+    doc.text(montantTotalValue, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+    
+    yPosition += 10.5; // Espacement augmenté
     
     // Montant payé
-    doc.setFontSize(10); // Augmenté de 9 à 10
+    doc.setFontSize(11); // Augmenté
     doc.setFont('helvetica', 'normal');
-    doc.text('Montant payé:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
-    yPosition += 9; // Ajusté de 8.75 à 9
+    doc.setTextColor(0, 0, 0); // Retour au noir
+    doc.text('Montant payé:', totalColX + 6, yPosition);
+    doc.setFontSize(11); // Augmenté pour la valeur
+    doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+    yPosition += 10.5; // Espacement augmenté
     
     // Montant restant
-    doc.text('Reste à payer:', totalColX + 5, yPosition);
-    doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 5, yPosition, { align: 'right' });
+    doc.setFontSize(11); // Augmenté
+    doc.text('Reste à payer:', totalColX + 6, yPosition);
+    doc.setFontSize(11); // Augmenté pour la valeur
+    doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
     
-    // Section client (à gauche des totaux)
+    // Section client (à gauche des totaux) - ajustée pour l'espace plus grand
     const clientSectionX = margins.left;
-    const clientSectionWidth = totalColX - margins.left - 10;
+    const clientSectionWidth = totalColX - margins.left - 15; // Réduit pour laisser plus d'espace aux totaux
     
     yPosition = totalSectionTop;
     
@@ -1102,8 +1121,6 @@ const generatePDF = async (vente) => {
     return false;
   }
 };
-
-
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
     try {
