@@ -639,22 +639,24 @@ const generatePDF = async (vente) => {
           // Ajouter le logo au PDF
           const dataURL = canvas.toDataURL('image/png');
           
-          // CADRE DU LOGO SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ"
+          // CADRE DU LOGO SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ" - CORRIGÉ
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.5);
+          // Dessiner le cadre AVANT d'ajouter l'image
           doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
           
+          // Ajouter l'image DANS le cadre
           doc.addImage(dataURL, 'PNG', margins.left, yPosition, logoWidth, logoHeight);
           
           resolve();
         };
         
         img.onerror = () => {
-          // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ"
+          // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ" - CORRIGÉ
           const logoWidth = 50;
           const logoHeight = 25;
           
-          // Cadre du logo
+          // Cadre du logo - D'abord le cadre
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.5);
           doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
@@ -679,11 +681,11 @@ const generatePDF = async (vente) => {
       
     } catch (error) {
       console.warn('Erreur avec le logo, utilisation du texte:', error);
-      // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ"
+      // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ" - CORRIGÉ
       const logoWidth = 50;
       const logoHeight = 25;
       
-      // Cadre du logo
+      // Cadre du logo - D'abord le cadre
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
@@ -1155,8 +1157,120 @@ const generatePDF = async (vente) => {
     doc.setFontSize(11);
     doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
     
+    // Ajuster yPosition après les totaux pour les signatures
+    yPosition = totalSectionTop + totalBoxHeight + 20;
+    
+    // ==============================
+    // SECTION DES SIGNATURES
+    // ==============================
+    
+    // Ligne de séparation avant les signatures
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.line(margins.left, yPosition - 5, pageWidth - margins.right, yPosition - 5);
+    
+    // Espacement après la ligne
+    yPosition += 5;
+    
+    // Largeur des zones de signature
+    const signatureWidth = (contentWidth / 2) - 10;
+    
+    // ==============================
+    // SIGNATURE À GAUCHE - CLIENT
+    // ==============================
+    const signatureClientX = margins.left;
+    
+    // Zone de signature client avec cadre
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    const signatureHeight = 40;
+    
+    // Cadre de signature client
+    doc.rect(signatureClientX, yPosition, signatureWidth, signatureHeight, 'S');
+    
+    // Titre "Le Client"
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('Le Client', signatureClientX + (signatureWidth / 2), yPosition + 8, { align: 'center' });
+    
+    // Ligne de séparation sous le titre
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.line(signatureClientX + 15, yPosition + 10, signatureClientX + signatureWidth - 15, yPosition + 10);
+    
+    // Nom du client
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const clientName = venteActualisee.client_nom || venteActualisee.client?.nom || 'Nom du Client';
+    doc.text(clientName, signatureClientX + (signatureWidth / 2), yPosition + 22, { align: 'center' });
+    
+    // Ligne pour la signature
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    const signatureLineY = yPosition + 30;
+    const signatureLineLength = signatureWidth - 30;
+    doc.line(
+      signatureClientX + (signatureWidth / 2) - (signatureLineLength / 2),
+      signatureLineY,
+      signatureClientX + (signatureWidth / 2) + (signatureLineLength / 2),
+      signatureLineY
+    );
+    
+    // Texte "Signature et cachet"
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Signature et cachet', signatureClientX + (signatureWidth / 2), signatureLineY + 6, { align: 'center' });
+    
+    // ==============================
+    // SIGNATURE À DROITE - ENTREPRISE
+    // ==============================
+    const signatureEntrepriseX = margins.left + signatureWidth + 20;
+    
+    // Zone de signature entreprise avec cadre
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    
+    // Cadre de signature entreprise
+    doc.rect(signatureEntrepriseX, yPosition, signatureWidth, signatureHeight, 'S');
+    
+    // Titre "L'Entreprise"
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('L\'Entreprise', signatureEntrepriseX + (signatureWidth / 2), yPosition + 8, { align: 'center' });
+    
+    // Ligne de séparation sous le titre
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.line(signatureEntrepriseX + 15, yPosition + 10, signatureEntrepriseX + signatureWidth - 15, yPosition + 10);
+    
+    // Nom de l'entreprise
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('MGS SARL', signatureEntrepriseX + (signatureWidth / 2), yPosition + 22, { align: 'center' });
+    
+    // Ligne pour la signature
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.line(
+      signatureEntrepriseX + (signatureWidth / 2) - (signatureLineLength / 2),
+      signatureLineY,
+      signatureEntrepriseX + (signatureWidth / 2) + (signatureLineLength / 2),
+      signatureLineY
+    );
+    
+    // Texte "Signature et cachet"
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Signature et cachet', signatureEntrepriseX + (signatureWidth / 2), signatureLineY + 6, { align: 'center' });
+    
+    // Ajuster yPosition pour le pied de page
+    yPosition += signatureHeight + 15;
+    
     // Pied de page
-    const footerY = 280;
+    const footerY = Math.max(yPosition, 270); // S'assurer que le pied de page est bien en bas
+    
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
     doc.setFont('helvetica', 'normal');
