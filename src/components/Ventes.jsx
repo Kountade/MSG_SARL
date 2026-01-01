@@ -602,14 +602,14 @@ const generatePDF = async (vente) => {
     
     let yPosition = margins.top;
     
-    // Logo - Essayer différents formats
+    // Logo - Version simplifiée pour fond blanc
     try {
       // Tenter de charger le logo depuis l'URL
       const img = new Image();
       
       await new Promise((resolve, reject) => {
         img.onload = () => {
-          // Créer un canvas pour le logo avec bordure arrondie
+          // Créer un canvas pour le logo simple
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
@@ -617,7 +617,7 @@ const generatePDF = async (vente) => {
           const logoWidth = 50;
           const logoHeight = 25;
           
-          // Redimensionner le canvas pour correspondre aux dimensions du PDF
+          // Redimensionner le canvas
           canvas.width = logoWidth * 4;
           canvas.height = logoHeight * 4;
           
@@ -631,104 +631,43 @@ const generatePDF = async (vente) => {
           const x = (canvas.width - scaledWidth) / 2;
           const y = (canvas.height - scaledHeight) / 2;
           
-          // Dessiner le fond blanc avec coins arrondis
-          const borderRadius = 12;
-          ctx.beginPath();
-          ctx.moveTo(borderRadius, 0);
-          ctx.lineTo(canvas.width - borderRadius, 0);
-          ctx.quadraticCurveTo(canvas.width, 0, canvas.width, borderRadius);
-          ctx.lineTo(canvas.width, canvas.height - borderRadius);
-          ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - borderRadius, canvas.height);
-          ctx.lineTo(borderRadius, canvas.height);
-          ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - borderRadius);
-          ctx.lineTo(0, borderRadius);
-          ctx.quadraticCurveTo(0, 0, borderRadius, 0);
-          ctx.closePath();
+          // Dessiner l'image sur fond blanc
           ctx.fillStyle = '#ffffff';
-          ctx.fill();
-          
-          // Créer un masque arrondi pour l'image
-          ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(borderRadius, 0);
-          ctx.lineTo(canvas.width - borderRadius, 0);
-          ctx.quadraticCurveTo(canvas.width, 0, canvas.width, borderRadius);
-          ctx.lineTo(canvas.width, canvas.height - borderRadius);
-          ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - borderRadius, canvas.height);
-          ctx.lineTo(borderRadius, canvas.height);
-          ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - borderRadius);
-          ctx.lineTo(0, borderRadius);
-          ctx.quadraticCurveTo(0, 0, borderRadius, 0);
-          ctx.closePath();
-          ctx.clip();
-          
-          // Dessiner l'image centrée
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-          ctx.restore();
-          
-          // Ajouter une bordure noire
-          ctx.beginPath();
-          ctx.moveTo(borderRadius, 0);
-          ctx.lineTo(canvas.width - borderRadius, 0);
-          ctx.quadraticCurveTo(canvas.width, 0, canvas.width, borderRadius);
-          ctx.lineTo(canvas.width, canvas.height - borderRadius);
-          ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - borderRadius, canvas.height);
-          ctx.lineTo(borderRadius, canvas.height);
-          ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - borderRadius);
-          ctx.lineTo(0, borderRadius);
-          ctx.quadraticCurveTo(0, 0, borderRadius, 0);
-          ctx.closePath();
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 3;
-          ctx.stroke();
           
           // Ajouter le logo au PDF
           const dataURL = canvas.toDataURL('image/png');
+          
+          // CADRE DU LOGO SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ"
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(0.5);
+          doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
+          
           doc.addImage(dataURL, 'PNG', margins.left, yPosition, logoWidth, logoHeight);
           
           resolve();
         };
         
         img.onerror = () => {
-          // Si le logo ne charge pas, créer un logo de secours avec texte
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ"
+          const logoWidth = 50;
+          const logoHeight = 25;
           
-          canvas.width = 50 * 4;
-          canvas.height = 25 * 4;
+          // Cadre du logo
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(0.5);
+          doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
           
-          // Dessiner un fond arrondi
-          const borderRadius = 12;
-          ctx.beginPath();
-          ctx.moveTo(borderRadius, 0);
-          ctx.lineTo(canvas.width - borderRadius, 0);
-          ctx.quadraticCurveTo(canvas.width, 0, canvas.width, borderRadius);
-          ctx.lineTo(canvas.width, canvas.height - borderRadius);
-          ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - borderRadius, canvas.height);
-          ctx.lineTo(borderRadius, canvas.height);
-          ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - borderRadius);
-          ctx.lineTo(0, borderRadius);
-          ctx.quadraticCurveTo(0, 0, borderRadius, 0);
-          ctx.closePath();
-          ctx.fillStyle = '#2c3e50';
-          ctx.fill();
-          
-          // Ajouter une bordure noire
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 3;
-          ctx.stroke();
-          
-          // Ajouter le texte
-          ctx.fillStyle = 'white';
-          ctx.font = 'bold 40px Arial';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('MGS', canvas.width/2, canvas.height/2 - 20);
-          ctx.font = 'bold 24px Arial';
-          ctx.fillText('SARL', canvas.width/2, canvas.height/2 + 15);
-          
-          const dataURL = canvas.toDataURL('image/png');
-          doc.addImage(dataURL, 'PNG', margins.left, yPosition, 50, 25);
+          // Texte à l'intérieur du cadre
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 8, { align: 'center' });
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 14, { align: 'center' });
+          doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 19, { align: 'center' });
           
           resolve();
         };
@@ -740,107 +679,95 @@ const generatePDF = async (vente) => {
       
     } catch (error) {
       console.warn('Erreur avec le logo, utilisation du texte:', error);
-      // Créer un cadre arrondi pour le texte du logo
-      const logoTextWidth = 50;
-      const logoTextHeight = 25;
-      const borderRadius = 3;
+      // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ"
+      const logoWidth = 50;
+      const logoHeight = 25;
       
-      // Dessiner le cadre arrondi
+      // Cadre du logo
       doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.8);
-      doc.roundedRect(margins.left - 1, yPosition - 1, logoTextWidth + 2, logoTextHeight + 2, borderRadius, borderRadius, 'S');
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
       
-      // Remplir le fond du cadre
-      doc.setFillColor(60, 60, 60);
-      doc.roundedRect(margins.left, yPosition, logoTextWidth, logoTextHeight, borderRadius - 0.5, borderRadius - 0.5, 'F');
-      
-      // Ajouter le texte
+      // Texte à l'intérieur du cadre
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text('MGS', margins.left + (logoTextWidth / 2), yPosition + 10, { align: 'center' });
-      doc.setFontSize(12);
-      doc.text('SARL', margins.left + (logoTextWidth / 2), yPosition + 15, { align: 'center' });
-      
-      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 8, { align: 'center' });
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('Gestion de Stock', margins.left + (logoTextWidth / 2), yPosition + 21, { align: 'center' });
+      doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 14, { align: 'center' });
+      doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 19, { align: 'center' });
     }
     
     // Ajuster la position pour les informations société
-    const infoSocieteY = yPosition + 5;
+    const infoSocieteY = yPosition + 2;
     
-    // INFORMATION DE LA SOCIÉTÉ - TAILLE AUGMENTÉE AVEC COINS ARRONDIS
+    // INFORMATION DE LA SOCIÉTÉ - Version blanche
     const infoSocieteX = pageWidth - margins.right - 95;
     
-    // Cadre pour INFORMATION DE LA SOCIÉTÉ avec BORDURE ARRONDIE
+    // Cadre pour INFORMATION DE LA SOCIÉTÉ avec bordure simple
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.8); // Bordure plus épaisse
+    doc.setLineWidth(0.5);
     const infoBoxWidth = 97;
     const infoBoxHeight = 40;
-    const infoBorderRadius = 3; // Rayon pour les coins arrondis
     
-    // Dessiner le cadre arrondi
-    doc.roundedRect(infoSocieteX, infoSocieteY - 2, infoBoxWidth, infoBoxHeight, infoBorderRadius, infoBorderRadius, 'S');
+    // Cadre simple
+    doc.rect(infoSocieteX, infoSocieteY - 2, infoBoxWidth, infoBoxHeight, 'S');
     
-    // Remplir le fond du cadre avec une couleur légère
-    doc.setFillColor(248, 248, 248); // Gris très clair
-    doc.roundedRect(infoSocieteX + 0.2, infoSocieteY - 1.8, infoBoxWidth - 0.4, infoBoxHeight - 0.4, infoBorderRadius - 0.2, infoBorderRadius - 0.2, 'F');
+    // Fond blanc (par défaut)
     
-    // Titre "INFORMATION DE LA SOCIÉTÉ" plus grand et centré
-    doc.setFontSize(12); // Augmenté de 11 à 12
+    // Titre "INFORMATION DE LA SOCIÉTÉ"
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0); // Texte noir
+    doc.setTextColor(0, 0, 0);
     doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX + (infoBoxWidth / 2), infoSocieteY + 4, { align: 'center' });
     
     // Ligne de séparation sous le titre
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.3);
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
     doc.line(infoSocieteX + 8, infoSocieteY + 6, infoSocieteX + infoBoxWidth - 8, infoSocieteY + 6);
     
-    // Informations société avec taille de police augmentée
+    // Informations société
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     
     let infoY = infoSocieteY + 10;
     
-    // Nom: MSG SARL - en gras
+    // Nom: MSG SARL
     doc.setFont('helvetica', 'bold');
     doc.text('Nom:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
     doc.text('MSG SARL', infoSocieteX + 18, infoY);
-    infoY += 5; // Espacement augmenté
+    infoY += 5;
     
     // Adresse: LYMANYA
     doc.setFont('helvetica', 'bold');
     doc.text('Adresse:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
     doc.text('LYMANYA', infoSocieteX + 25, infoY);
-    infoY += 5; // Espacement augmenté
+    infoY += 5;
     
     // Téléphone
     doc.setFont('helvetica', 'bold');
     doc.text('Tél:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5); // Légèrement plus petit pour le numéro long
+    doc.setFontSize(9.5);
     doc.text('+225 05 45 75 18 / 05 79 51 75', infoSocieteX + 14, infoY);
-   
     doc.setFontSize(10);
-    infoY += 7; // Espacement augmenté pour les deux lignes de téléphone
+    infoY += 7;
     
     // Email
     doc.setFont('helvetica', 'bold');
     doc.text('Email:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
     doc.text('jallowrimkaz@gmail.com', infoSocieteX + 20, infoY);
-   
     
-    // Ajuster yPosition pour tenir compte du logo plus grand et de la boîte d'info
+    // Ajuster yPosition
     yPosition = Math.max(infoSocieteY + infoBoxHeight + 5, yPosition + 35);
     
     // Ligne de séparation fine
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.1);
+    doc.setLineWidth(0.2);
     doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
     yPosition += 8;
     
@@ -853,33 +780,108 @@ const generatePDF = async (vente) => {
     doc.text(`FACTURE VENTE ${statutVente}`, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 6;
     
-    // Informations facture
+    // ==============================
+    // SECTION CLIENT ET FACTURE
+    // ==============================
+    const sectionTop = yPosition;
+    const sectionHeight = 35;
+    const sectionLeftWidth = contentWidth * 0.6;
+    const sectionRightWidth = contentWidth * 0.4;
+    
+    // Cadre de la section avec bordure simple
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    doc.rect(margins.left, sectionTop, contentWidth, sectionHeight, 'S');
+    
+    // Ligne verticale de séparation
+    doc.line(margins.left + sectionLeftWidth, sectionTop, margins.left + sectionLeftWidth, sectionTop + sectionHeight);
+    
+    // ==============================
+    // PARTIE GAUCHE - INFORMATIONS CLIENT
+    // ==============================
+    let clientY = sectionTop + 5;
+    const clientLeftMargin = margins.left + 5;
+    
+    // Titre section client
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('INFORMATIONS CLIENT', clientLeftMargin, clientY);
+    clientY += 8;
+    
     doc.setFontSize(10);
     
-    // DATE (à gauche)
+    // Dénomination
     doc.setFont('helvetica', 'bold');
-    doc.text('DATE :', margins.left, yPosition);
+    doc.text('Dénomination :', clientLeftMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
+    doc.text(clientNom, clientLeftMargin + 28, clientY);
+    clientY += 5;
+    
+    // Adresse
+    doc.setFont('helvetica', 'bold');
+    doc.text('Adresse :', clientLeftMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
+    doc.text(clientAdresse, clientLeftMargin + 28, clientY);
+    clientY += 5;
+    
+    // Téléphone
+    doc.setFont('helvetica', 'bold');
+    doc.text('Téléphone :', clientLeftMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
+    doc.text(clientTel, clientLeftMargin + 28, clientY);
+    clientY += 5;
+    
+    // Email
+    doc.setFont('helvetica', 'bold');
+    doc.text('Email :', clientLeftMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
+    doc.text(clientEmail, clientLeftMargin + 28, clientY);
+    clientY += 5;
+    
+    // Mode de paiement
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mode de paiement :', clientLeftMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
+    doc.text(modePaiement, clientLeftMargin + 40, clientY);
+    
+    // ==============================
+    // PARTIE DROITE - INFORMATIONS FACTURE
+    // ==============================
+    let factureY = sectionTop + 8;
+    const factureLeftMargin = margins.left + sectionLeftWidth + 10;
+    
+    // DATE
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATE :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
     const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
-    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), margins.left + 15, yPosition);
-    
-    // FACTURE N° (à droite)
-    doc.setFont('helvetica', 'bold');
-    const factureNumX = pageWidth - margins.right - 50;
-    doc.text('FACTURE N° :', factureNumX, yPosition);
-    doc.setFont('helvetica', 'normal');
-    doc.text(venteActualisee.numero_vente || 'N/A', pageWidth - margins.right - 5, yPosition, { align: 'right' });
-    
-    yPosition += 5;
+    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 20, factureY);
+    factureY += 5;
     
     // N° Client
     doc.setFont('helvetica', 'bold');
-    doc.text('N° Client :', margins.left, yPosition);
+    doc.text('N° Client :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
     const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
-    doc.text(clientCode, margins.left + 25, yPosition);
+    doc.text(clientCode, factureLeftMargin + 30, factureY);
+    factureY += 5;
     
-    yPosition += 15;
+    // FACTURE N°
+    doc.setFont('helvetica', 'bold');
+    doc.text('FACTURE N° :', factureLeftMargin, factureY);
+    doc.setFont('helvetica', 'normal');
+    const factureNum = venteActualisee.numero_vente || 'N/A';
+    doc.text(factureNum, factureLeftMargin + 30, factureY);
+    
+    // Ajuster yPosition après la section
+    yPosition = sectionTop + sectionHeight + 15;
     
     // Tableau des produits
     const colWidths = {
@@ -903,21 +905,17 @@ const generatePDF = async (vente) => {
     const ligneHeight = 8;
     const tableTop = yPosition;
 
-    // En-tête du tableau
-    doc.setFillColor(60, 60, 60);
-    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'F');
+    // En-tête du tableau - Fond blanc, texte noir, bordure
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-
-    // Bordures de l'en-tête
-    doc.setDrawColor(80, 80, 80);
-    doc.setLineWidth(0.3);
-    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
+    doc.setTextColor(0, 0, 0);
 
     // Bordures verticales
-    doc.setDrawColor(100, 100, 100);
+    doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
     doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
     doc.line(colPositions.qte, tableTop, colPositions.qte, tableTop + ligneHeight);
@@ -967,9 +965,11 @@ const generatePDF = async (vente) => {
           yPosition = margins.top + 15;
           
           // Redessiner l'en-tête du tableau sur la nouvelle page
-          doc.setFillColor(60, 60, 60);
-          doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
-          doc.setTextColor(255, 255, 255);
+          doc.setDrawColor(0, 0, 0);
+          doc.setLineWidth(0.5);
+          doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+          
+          doc.setTextColor(0, 0, 0);
           doc.setFont('helvetica', 'bold');
           doc.text('CODE', colPositions.code + (colWidths.code / 2), yPosition + 5, { align: 'center' });
           doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), yPosition + 5, { align: 'center' });
@@ -978,10 +978,8 @@ const generatePDF = async (vente) => {
           doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), yPosition + 5, { align: 'center' });
           doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 5, { align: 'center' });
           
-          doc.setDrawColor(80, 80, 80);
-          doc.setLineWidth(0.3);
-          doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-          doc.setDrawColor(100, 100, 100);
+          // Bordures verticales
+          doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.2);
           doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
           doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
@@ -1015,17 +1013,9 @@ const generatePDF = async (vente) => {
         const montantFormatted = formatNombre(montantApresRemise);
         const remiseFormatted = formatPourcentage(remisePourcentage);
         
-        // Alternance de couleurs pour les lignes
-        if (index % 2 === 0) {
-          doc.setFillColor(248, 248, 248);
-        } else {
-          doc.setFillColor(255, 255, 255);
-        }
-        doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
-        
         // Bordures de la ligne
-        doc.setDrawColor(220, 220, 220);
-        doc.setLineWidth(0.15);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.1);
         doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
         doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
         doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
@@ -1059,22 +1049,16 @@ const generatePDF = async (vente) => {
         doc.setTextColor(0, 0, 0);
         
         // Montant
-        if (montantApresRemise > 0) {
-          doc.setFont('helvetica', 'bold');
-        }
+        doc.setFont('helvetica', 'bold');
         doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 5, yPosition + cellPaddingY, { align: 'right' });
-        
-        if (montantApresRemise > 0) {
-          doc.setFont('helvetica', 'normal');
-        }
+        doc.setFont('helvetica', 'normal');
         
         yPosition += ligneHeight;
       });
     } else {
       // Si pas de lignes de vente
-      doc.setFillColor(255, 255, 255);
-      doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
-      doc.setDrawColor(220, 220, 220);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.1);
       doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
       doc.setTextColor(150, 150, 150);
       doc.text('Aucun produit dans cette vente', margins.left + contentWidth / 2, yPosition + 4, { align: 'center' });
@@ -1115,18 +1099,13 @@ const generatePDF = async (vente) => {
     
     doc.setFontSize(11);
     
-    // Cadre des totaux AVEC COINS ARRONDIS
+    // Cadre des totaux simple
     doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.8); // Bordure plus épaisse
+    doc.setLineWidth(0.5);
     const totalBoxHeight = 42;
-    const totalBorderRadius = 3; // Rayon pour les coins arrondis
     
-    // Dessiner le cadre arrondi pour les totaux
-    doc.roundedRect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, totalBorderRadius, totalBorderRadius, 'S');
-    
-    // Remplir le fond du cadre des totaux
-    doc.setFillColor(248, 248, 248);
-    doc.roundedRect(totalColX + 0.2, totalSectionTop + 0.2, totalColWidth - 0.4, totalBoxHeight - 0.4, totalBorderRadius - 0.2, totalBorderRadius - 0.2, 'F');
+    // Cadre simple pour les totaux
+    doc.rect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, 'S');
     
     // Lignes horizontales dans le cadre
     let currentY = totalSectionTop + 12;
@@ -1175,57 +1154,6 @@ const generatePDF = async (vente) => {
     doc.text('Reste à payer:', totalColX + 8, yPosition);
     doc.setFontSize(11);
     doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
-    
-    // Section client
-    const clientSectionX = margins.left;
-    
-    yPosition = totalSectionTop;
-    
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('INFORMATIONS CLIENT', clientSectionX, yPosition);
-    yPosition += 7;
-    
-    doc.setFontSize(10);
-    
-    // Dénomination
-    doc.setFont('helvetica', 'bold');
-    doc.text('Dénomination :', clientSectionX, yPosition);
-    doc.setFont('helvetica', 'normal');
-    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
-    doc.text(clientNom, clientSectionX + 25, yPosition);
-    yPosition += 5;
-    
-    // Adresse
-    doc.setFont('helvetica', 'bold');
-    doc.text('Adresse :', clientSectionX, yPosition);
-    doc.setFont('helvetica', 'normal');
-    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
-    doc.text(clientAdresse, clientSectionX + 25, yPosition);
-    yPosition += 5;
-    
-    // Téléphone
-    doc.setFont('helvetica', 'bold');
-    doc.text('Téléphone :', clientSectionX, yPosition);
-    doc.setFont('helvetica', 'normal');
-    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
-    doc.text(clientTel, clientSectionX + 25, yPosition);
-    yPosition += 5;
-    
-    // Email
-    doc.setFont('helvetica', 'bold');
-    doc.text('Email :', clientSectionX, yPosition);
-    doc.setFont('helvetica', 'normal');
-    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
-    doc.text(clientEmail, clientSectionX + 25, yPosition);
-    yPosition += 5;
-    
-    // Mode de paiement
-    doc.setFont('helvetica', 'bold');
-    doc.text('Mode de paiement :', clientSectionX, yPosition);
-    doc.setFont('helvetica', 'normal');
-    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
-    doc.text(modePaiement, clientSectionX + 35, yPosition);
     
     // Pied de page
     const footerY = 280;
