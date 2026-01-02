@@ -577,7 +577,6 @@ const Ventes = () => {
   // Générer un PDF
 const generatePDF = async (vente) => {
   try {
-    // Rafraîchir les données de la vente avant de générer le PDF
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
     
     if (!venteActualisee) {
@@ -595,33 +594,26 @@ const generatePDF = async (vente) => {
       format: 'a4'
     });
     
-    // Configuration
     const pageWidth = 210;
     const margins = { left: 10, right: 10, top: 15, bottom: 20 };
     const contentWidth = pageWidth - margins.left - margins.right;
     
     let yPosition = margins.top;
     
-    // Logo - Version simplifiée pour fond blanc
     try {
-      // Tenter de charger le logo depuis l'URL
       const img = new Image();
       
       await new Promise((resolve, reject) => {
         img.onload = () => {
-          // Créer un canvas pour le logo simple
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
-          // Dimensions du logo
           const logoWidth = 50;
           const logoHeight = 25;
           
-          // Redimensionner le canvas
           canvas.width = logoWidth * 4;
           canvas.height = logoHeight * 4;
           
-          // Calculer les dimensions pour centrer et adapter l'image
           const scale = Math.min(
             canvas.width / img.width,
             canvas.height / img.height
@@ -631,37 +623,29 @@ const generatePDF = async (vente) => {
           const x = (canvas.width - scaledWidth) / 2;
           const y = (canvas.height - scaledHeight) / 2;
           
-          // Dessiner l'image sur fond blanc
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
           
-          // Ajouter le logo au PDF
           const dataURL = canvas.toDataURL('image/png');
           
-          // CADRE DU LOGO SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ" - CORRIGÉ
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.5);
-          // Dessiner le cadre AVANT d'ajouter l'image
           doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
           
-          // Ajouter l'image DANS le cadre
           doc.addImage(dataURL, 'PNG', margins.left, yPosition, logoWidth, logoHeight);
           
           resolve();
         };
         
         img.onerror = () => {
-          // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ" - CORRIGÉ
           const logoWidth = 50;
           const logoHeight = 25;
           
-          // Cadre du logo - D'abord le cadre
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.5);
           doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
           
-          // Texte à l'intérieur du cadre
           doc.setFontSize(16);
           doc.setFont('helvetica', 'bold');
           doc.setTextColor(0, 0, 0);
@@ -674,23 +658,19 @@ const generatePDF = async (vente) => {
           resolve();
         };
         
-        // Charger l'image du logo
         img.src = logo;
         img.crossOrigin = 'anonymous';
       });
       
     } catch (error) {
       console.warn('Erreur avec le logo, utilisation du texte:', error);
-      // CADRE DU LOGO AVEC TEXTE - SIMILAIRE À "INFORMATION DE LA SOCIÉTÉ" - CORRIGÉ
       const logoWidth = 50;
       const logoHeight = 25;
       
-      // Cadre du logo - D'abord le cadre
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
       
-      // Texte à l'intérieur du cadre
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
@@ -701,55 +681,42 @@ const generatePDF = async (vente) => {
       doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 19, { align: 'center' });
     }
     
-    // Ajuster la position pour les informations société
     const infoSocieteY = yPosition + 2;
-    
-    // INFORMATION DE LA SOCIÉTÉ - Version blanche
     const infoSocieteX = pageWidth - margins.right - 95;
     
-    // Cadre pour INFORMATION DE LA SOCIÉTÉ avec bordure simple
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
     const infoBoxWidth = 97;
     const infoBoxHeight = 40;
     
-    // Cadre simple
     doc.rect(infoSocieteX, infoSocieteY - 2, infoBoxWidth, infoBoxHeight, 'S');
     
-    // Fond blanc (par défaut)
-    
-    // Titre "INFORMATION DE LA SOCIÉTÉ"
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
     doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX + (infoBoxWidth / 2), infoSocieteY + 4, { align: 'center' });
     
-    // Ligne de séparation sous le titre
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
     doc.line(infoSocieteX + 8, infoSocieteY + 6, infoSocieteX + infoBoxWidth - 8, infoSocieteY + 6);
     
-    // Informations société
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     
     let infoY = infoSocieteY + 10;
     
-    // Nom: MSG SARL
     doc.setFont('helvetica', 'bold');
     doc.text('Nom:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
     doc.text('MSG SARL', infoSocieteX + 18, infoY);
     infoY += 5;
     
-    // Adresse: LYMANYA
     doc.setFont('helvetica', 'bold');
     doc.text('Adresse:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
     doc.text('LYMANYA', infoSocieteX + 25, infoY);
     infoY += 5;
     
-    // Téléphone
     doc.setFont('helvetica', 'bold');
     doc.text('Tél:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
@@ -758,22 +725,18 @@ const generatePDF = async (vente) => {
     doc.setFontSize(10);
     infoY += 7;
     
-    // Email
     doc.setFont('helvetica', 'bold');
     doc.text('Email:', infoSocieteX + 6, infoY);
     doc.setFont('helvetica', 'normal');
     doc.text('jallowrimkaz@gmail.com', infoSocieteX + 20, infoY);
     
-    // Ajuster yPosition
     yPosition = Math.max(infoSocieteY + infoBoxHeight + 5, yPosition + 35);
     
-    // Ligne de séparation fine
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
     doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
     yPosition += 8;
     
-    // Titre de la facture
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     const statutVente = venteActualisee.statut === 'confirmee' && 
@@ -782,29 +745,13 @@ const generatePDF = async (vente) => {
     doc.text(`FACTURE VENTE ${statutVente}`, pageWidth / 2, yPosition, { align: 'center' });
     yPosition += 6;
     
-    // ==============================
-    // SECTION CLIENT ET FACTURE
-    // ==============================
     const sectionTop = yPosition;
     const sectionHeight = 35;
     const sectionLeftWidth = contentWidth * 0.6;
-    const sectionRightWidth = contentWidth * 0.4;
     
-    // Cadre de la section avec bordure simple
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    doc.rect(margins.left, sectionTop, contentWidth, sectionHeight, 'S');
-    
-    // Ligne verticale de séparation
-    doc.line(margins.left + sectionLeftWidth, sectionTop, margins.left + sectionLeftWidth, sectionTop + sectionHeight);
-    
-    // ==============================
-    // PARTIE GAUCHE - INFORMATIONS CLIENT
-    // ==============================
     let clientY = sectionTop + 5;
     const clientLeftMargin = margins.left + 5;
     
-    // Titre section client
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
@@ -813,7 +760,6 @@ const generatePDF = async (vente) => {
     
     doc.setFontSize(10);
     
-    // Dénomination
     doc.setFont('helvetica', 'bold');
     doc.text('Dénomination :', clientLeftMargin, clientY);
     doc.setFont('helvetica', 'normal');
@@ -821,7 +767,6 @@ const generatePDF = async (vente) => {
     doc.text(clientNom, clientLeftMargin + 28, clientY);
     clientY += 5;
     
-    // Adresse
     doc.setFont('helvetica', 'bold');
     doc.text('Adresse :', clientLeftMargin, clientY);
     doc.setFont('helvetica', 'normal');
@@ -829,7 +774,6 @@ const generatePDF = async (vente) => {
     doc.text(clientAdresse, clientLeftMargin + 28, clientY);
     clientY += 5;
     
-    // Téléphone
     doc.setFont('helvetica', 'bold');
     doc.text('Téléphone :', clientLeftMargin, clientY);
     doc.setFont('helvetica', 'normal');
@@ -837,7 +781,6 @@ const generatePDF = async (vente) => {
     doc.text(clientTel, clientLeftMargin + 28, clientY);
     clientY += 5;
     
-    // Email
     doc.setFont('helvetica', 'bold');
     doc.text('Email :', clientLeftMargin, clientY);
     doc.setFont('helvetica', 'normal');
@@ -845,20 +788,15 @@ const generatePDF = async (vente) => {
     doc.text(clientEmail, clientLeftMargin + 28, clientY);
     clientY += 5;
     
-    // Mode de paiement
     doc.setFont('helvetica', 'bold');
     doc.text('Mode de paiement :', clientLeftMargin, clientY);
     doc.setFont('helvetica', 'normal');
     const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
     doc.text(modePaiement, clientLeftMargin + 40, clientY);
     
-    // ==============================
-    // PARTIE DROITE - INFORMATIONS FACTURE
-    // ==============================
     let factureY = sectionTop + 8;
     const factureLeftMargin = margins.left + sectionLeftWidth + 10;
     
-    // DATE
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('DATE :', factureLeftMargin, factureY);
@@ -867,7 +805,6 @@ const generatePDF = async (vente) => {
     doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 20, factureY);
     factureY += 5;
     
-    // N° Client
     doc.setFont('helvetica', 'bold');
     doc.text('N° Client :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
@@ -875,17 +812,14 @@ const generatePDF = async (vente) => {
     doc.text(clientCode, factureLeftMargin + 30, factureY);
     factureY += 5;
     
-    // FACTURE N°
     doc.setFont('helvetica', 'bold');
     doc.text('FACTURE N° :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
     const factureNum = venteActualisee.numero_vente || 'N/A';
     doc.text(factureNum, factureLeftMargin + 30, factureY);
     
-    // Ajuster yPosition après la section
     yPosition = sectionTop + sectionHeight + 15;
     
-    // Tableau des produits
     const colWidths = {
       code: 35,
       designation: 55,
@@ -907,7 +841,6 @@ const generatePDF = async (vente) => {
     const ligneHeight = 8;
     const tableTop = yPosition;
 
-    // En-tête du tableau - Fond blanc, texte noir, bordure
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
     doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
@@ -916,7 +849,6 @@ const generatePDF = async (vente) => {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
 
-    // Bordures verticales
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
     doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
@@ -925,7 +857,6 @@ const generatePDF = async (vente) => {
     doc.line(colPositions.remise, tableTop, colPositions.remise, tableTop + ligneHeight);
     doc.line(colPositions.montant - 1, tableTop, colPositions.montant - 1, tableTop + ligneHeight);
 
-    // Texte de l'en-tête
     const headerTextY = tableTop + 5;
     doc.text('CODE', colPositions.code + (colWidths.code / 2), headerTextY, { align: 'center' });
     doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), headerTextY, { align: 'center' });
@@ -936,7 +867,6 @@ const generatePDF = async (vente) => {
 
     yPosition = tableTop + ligneHeight;
 
-    // Fonction pour formater correctement les nombres français
     const formatNombre = (nombre) => {
       const num = parseFloat(nombre) || 0;
       const parts = num.toFixed(2).split('.');
@@ -948,25 +878,21 @@ const generatePDF = async (vente) => {
       return `${entierFormate},${decimal}`;
     };
 
-    // Fonction pour formater les pourcentages
     const formatPourcentage = (pourcentage) => {
       const num = parseFloat(pourcentage) || 0;
       return num.toFixed(1).replace('.', ',') + '';
     };
 
-    // Lignes de produits
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
 
     if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
       venteActualisee.lignes_vente.forEach((ligne, index) => {
-        // Vérifier si besoin d'une nouvelle page
         if (yPosition + ligneHeight > 270) {
           doc.addPage();
           yPosition = margins.top + 15;
           
-          // Redessiner l'en-tête du tableau sur la nouvelle page
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.5);
           doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
@@ -980,7 +906,6 @@ const generatePDF = async (vente) => {
           doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), yPosition + 5, { align: 'center' });
           doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 5, { align: 'center' });
           
-          // Bordures verticales
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.2);
           doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
@@ -999,23 +924,19 @@ const generatePDF = async (vente) => {
         const remisePourcentage = parseFloat(ligne.remise) || 0;
         const montantApresRemise = quantite * prixUnitaire * (1 - remisePourcentage / 100);
         
-        // Code produit
         const codeProduit = ligne.produit_code || ligne.produit_id || 
                            `PROD${(index + 1).toString().padStart(3, '0')}`;
         
-        // Nom du produit avec entrepôt
         let nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
         const entrepot = ligne.entrepot_nom || ligne.entrepot || '';
         if (entrepot) {
           nomProduit += ` (${entrepot})`;
         }
         
-        // Formater les nombres
         const puFormatted = formatNombre(prixUnitaire);
         const montantFormatted = formatNombre(montantApresRemise);
         const remiseFormatted = formatPourcentage(remisePourcentage);
         
-        // Bordures de la ligne
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.1);
         doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
@@ -1025,13 +946,10 @@ const generatePDF = async (vente) => {
         doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
         doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
         
-        // Contenu des cellules
         const cellPaddingY = 5;
         
-        // Code (centré)
         doc.text(codeProduit.toString(), colPositions.code + (colWidths.code / 2), yPosition + cellPaddingY, { align: 'center' });
         
-        // Désignation
         let designationAffichee = nomProduit;
         const maxCaracteres = 45;
         if (designationAffichee.length > maxCaracteres) {
@@ -1039,18 +957,14 @@ const generatePDF = async (vente) => {
         }
         doc.text(designationAffichee, colPositions.designation + 3, yPosition + cellPaddingY);
         
-        // Quantité (centré)
         doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
         
-        // Prix unitaire
         doc.text(`${puFormatted} CFA`, colPositions.pu + colWidths.pu - 3, yPosition + cellPaddingY, { align: 'right' });
         
-        // Remise
         doc.setTextColor(80, 80, 80);
         doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 3, yPosition + cellPaddingY, { align: 'right' });
         doc.setTextColor(0, 0, 0);
         
-        // Montant
         doc.setFont('helvetica', 'bold');
         doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 5, yPosition + cellPaddingY, { align: 'right' });
         doc.setFont('helvetica', 'normal');
@@ -1058,7 +972,6 @@ const generatePDF = async (vente) => {
         yPosition += ligneHeight;
       });
     } else {
-      // Si pas de lignes de vente
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.1);
       doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
@@ -1067,14 +980,16 @@ const generatePDF = async (vente) => {
       yPosition += ligneHeight;
     }
 
-    // Ligne de séparation après le tableau
-    yPosition += 5;
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
-    yPosition += 10;
+    // SUPPRIMÉ : La ligne de séparation et l'espace après le tableau
+    // yPosition += 5;
+    // doc.setDrawColor(0, 0, 0);
+    // doc.setLineWidth(0.2);
+    // doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
+    // yPosition += 10;
     
-    // Fonction pour formater les nombres pour les totaux
+    // Section des totaux COLLÉE directement au tableau
+    const totalSectionTop = yPosition + 5; // Juste 5mm après le dernier produit
+    
     const formatNumber = (num) => {
       const number = parseFloat(num) || 0;
       const parts = number.toFixed(2).split('.');
@@ -1086,40 +1001,30 @@ const generatePDF = async (vente) => {
       return `${entierFormate},${decimal}`;
     };
     
-    // Section des totaux
-    const totalSectionTop = yPosition;
-    
-    // Calcul des totaux
     const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
     const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
     const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
     const totalTTC = totalHT;
     
-    // Positionnement des totaux
     const totalColX = pageWidth - margins.right - 95;
     const totalColWidth = 95;
     
     doc.setFontSize(11);
     
-    // Cadre des totaux simple
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.5);
     const totalBoxHeight = 42;
     
-    // Cadre simple pour les totaux
     doc.rect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, 'S');
     
-    // Lignes horizontales dans le cadre
     let currentY = totalSectionTop + 12;
     for (let i = 0; i < 3; i++) {
       doc.line(totalColX + 2, currentY, totalColX + totalColWidth - 2, currentY);
       currentY += 10.5;
     }
     
-    // Remplissage des totaux
     yPosition = totalSectionTop + 9;
     
-    // TOTAL HT
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text('TOTAL HT:', totalColX + 8, yPosition);
@@ -1127,7 +1032,6 @@ const generatePDF = async (vente) => {
     doc.text(`${formatNumber(totalHT)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
     yPosition += 10.5;
     
-    // MONTANT TOTAL
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     
@@ -1142,7 +1046,6 @@ const generatePDF = async (vente) => {
     
     yPosition += 10.5;
     
-    // Montant payé
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
@@ -1151,155 +1054,11 @@ const generatePDF = async (vente) => {
     doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
     yPosition += 10.5;
     
-    // Montant restant
     doc.setFontSize(11);
     doc.text('Reste à payer:', totalColX + 8, yPosition);
     doc.setFontSize(11);
     doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
     
-    // Ajuster yPosition après les totaux pour les signatures
-    yPosition = totalSectionTop + totalBoxHeight + 20;
-    
-    // ==============================
-    // SECTION DES SIGNATURES
-    // ==============================
-    
-    // Ligne de séparation avant les signatures
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(margins.left, yPosition - 5, pageWidth - margins.right, yPosition - 5);
-    
-    // Espacement après la ligne
-    yPosition += 5;
-    
-    // Largeur des zones de signature
-    const signatureWidth = (contentWidth / 2) - 10;
-    
-    // ==============================
-    // SIGNATURE À GAUCHE - CLIENT
-    // ==============================
-    const signatureClientX = margins.left;
-    
-    // Zone de signature client avec cadre
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    const signatureHeight = 40;
-    
-    // Cadre de signature client
-    doc.rect(signatureClientX, yPosition, signatureWidth, signatureHeight, 'S');
-    
-    // Titre "Le Client"
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('Le Client', signatureClientX + (signatureWidth / 2), yPosition + 8, { align: 'center' });
-    
-    // Ligne de séparation sous le titre
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(signatureClientX + 15, yPosition + 10, signatureClientX + signatureWidth - 15, yPosition + 10);
-    
-    // Nom du client
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    const clientName = venteActualisee.client_nom || venteActualisee.client?.nom || 'Nom du Client';
-    doc.text(clientName, signatureClientX + (signatureWidth / 2), yPosition + 22, { align: 'center' });
-    
-    // Ligne pour la signature
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    const signatureLineY = yPosition + 30;
-    const signatureLineLength = signatureWidth - 30;
-    doc.line(
-      signatureClientX + (signatureWidth / 2) - (signatureLineLength / 2),
-      signatureLineY,
-      signatureClientX + (signatureWidth / 2) + (signatureLineLength / 2),
-      signatureLineY
-    );
-    
-    // Texte "Signature et cachet"
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Signature et cachet', signatureClientX + (signatureWidth / 2), signatureLineY + 6, { align: 'center' });
-    
-    // ==============================
-    // SIGNATURE À DROITE - ENTREPRISE
-    // ==============================
-    const signatureEntrepriseX = margins.left + signatureWidth + 20;
-    
-    // Zone de signature entreprise avec cadre
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    
-    // Cadre de signature entreprise
-    doc.rect(signatureEntrepriseX, yPosition, signatureWidth, signatureHeight, 'S');
-    
-    // Titre "L'Entreprise"
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('L\'Entreprise', signatureEntrepriseX + (signatureWidth / 2), yPosition + 8, { align: 'center' });
-    
-    // Ligne de séparation sous le titre
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(signatureEntrepriseX + 15, yPosition + 10, signatureEntrepriseX + signatureWidth - 15, yPosition + 10);
-    
-    // Nom de l'entreprise
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text('MGS SARL', signatureEntrepriseX + (signatureWidth / 2), yPosition + 22, { align: 'center' });
-    
-    // Ligne pour la signature
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    doc.line(
-      signatureEntrepriseX + (signatureWidth / 2) - (signatureLineLength / 2),
-      signatureLineY,
-      signatureEntrepriseX + (signatureWidth / 2) + (signatureLineLength / 2),
-      signatureLineY
-    );
-    
-    // Texte "Signature et cachet"
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Signature et cachet', signatureEntrepriseX + (signatureWidth / 2), signatureLineY + 6, { align: 'center' });
-    
-    // Ajuster yPosition pour le pied de page
-    yPosition += signatureHeight + 15;
-    
-    // Pied de page
-    const footerY = Math.max(yPosition, 270); // S'assurer que le pied de page est bien en bas
-    
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    
-    // Ligne de séparation du footer
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.2);
-    doc.line(margins.left, footerY - 5, pageWidth - margins.right, footerY - 5);
-    
-    // Informations de bas de page
-    doc.text('MGS SARL - Capital social: XX XXX € - RCS: XXXXXX - SIRET: XXX XXX XXX XXXXX - TVA: FRXX XXXXXXX', 
-             pageWidth / 2, footerY, { align: 'center' });
-    
-    doc.text('Adresse: Votre adresse complète - Tél: XX XX XX XX XX - Email: contact@mgs-sarl.com', 
-             pageWidth / 2, footerY + 4, { align: 'center' });
-    
-    doc.text(`Facture générée électroniquement le ${new Date().toLocaleDateString('fr-FR')} - Valide sans signature`, 
-             pageWidth / 2, footerY + 8, { align: 'center' });
-    
-    // Numéro de page
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`Page ${i}/${pageCount}`, pageWidth - margins.right, 290, { align: 'right' });
-    }
-    
-    // Sauvegarde
     const fileName = `Facture-${venteActualisee.numero_vente || venteActualisee.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
     doc.save(fileName);
     
