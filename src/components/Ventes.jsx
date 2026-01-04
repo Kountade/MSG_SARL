@@ -751,15 +751,40 @@ const generatePDF = async (vente) => {
     doc.setTextColor(0, 0, 0);
     doc.text('INFORMATIONS CLIENT', clientLeftMargin, clientY);
     
-    // Ajouter "FACTURE VENTE NON SOLDÉ" juste en dessous du titre
+    // "FACTURE VENTE" et statut sur la même ligne
     clientY += 5;
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(150, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    
     const statutVente = venteActualisee.statut === 'confirmee' && 
                        parseFloat(venteActualisee.montant_restant || 0) === 0 
                        ? 'SOLDÉ' : 'NON SOLDÉ';
-    doc.text(`FACTURE VENTE ${statutVente}`, clientLeftMargin, clientY);
+    
+    // Afficher "FACTURE VENTE" en noir
+    doc.setTextColor(0, 0, 0);
+    const factureText = 'FACTURE VENTE ';
+    doc.text(factureText, clientLeftMargin, clientY);
+    
+    // Calculer la position de départ pour le rectangle rouge
+    const factureTextWidth = doc.getTextWidth(factureText);
+    const statutX = clientLeftMargin + factureTextWidth;
+    
+    // Calculer la largeur du statut pour dimensionner le rectangle
+    doc.setFont('helvetica', 'bold');
+    const statutTextWidth = doc.getTextWidth(statutVente);
+    const padding = 2; // Padding réduit pour le rectangle
+    const rectWidth = statutTextWidth + (padding * 2);
+    const rectHeight = 5;
+    
+    // Dessiner le rectangle rouge (juste les bordures)
+    doc.setDrawColor(255, 0, 0); // Rouge pour les bordures
+    doc.setFillColor(255, 255, 255); // Blanc pour l'intérieur
+    doc.setLineWidth(0.5);
+    doc.rect(statutX - 1, clientY - rectHeight + 1, rectWidth, rectHeight, 'FD'); // FD = Fill and Draw
+    
+    // Ajouter le statut en rouge à l'intérieur du rectangle
+    doc.setTextColor(255, 0, 0); // Rouge
+    doc.text(statutVente, statutX + padding - 1, clientY - 1);
     
     clientY += 8;
     doc.setTextColor(0, 0, 0);
