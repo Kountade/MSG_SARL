@@ -772,19 +772,19 @@ const generatePDF = async (vente) => {
     // Calculer la largeur du statut pour dimensionner le rectangle
     doc.setFont('helvetica', 'bold');
     const statutTextWidth = doc.getTextWidth(statutVente);
-    const padding = 2; // Padding réduit pour le rectangle
+    const padding = 5; // Padding réduit pour le rectangle
     const rectWidth = statutTextWidth + (padding * 2);
-    const rectHeight = 5;
+    const rectHeight = 6;
     
     // Dessiner le rectangle rouge (juste les bordures)
     doc.setDrawColor(255, 0, 0); // Rouge pour les bordures
     doc.setFillColor(255, 255, 255); // Blanc pour l'intérieur
     doc.setLineWidth(0.5);
-    doc.rect(statutX - 1, clientY - rectHeight + 1, rectWidth, rectHeight, 'FD'); // FD = Fill and Draw
+    doc.rect(statutX - -1, clientY - rectHeight + 1, rectWidth, rectHeight, 'FD'); // FD = Fill and Draw
     
     // Ajouter le statut en rouge à l'intérieur du rectangle
     doc.setTextColor(255, 0, 0); // Rouge
-    doc.text(statutVente, statutX + padding - 1, clientY - 1);
+    doc.text(statutVente, statutX + padding - 3, clientY - 1);
     
     clientY += 8;
     doc.setTextColor(0, 0, 0);
