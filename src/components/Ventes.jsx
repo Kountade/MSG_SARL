@@ -575,6 +575,7 @@ const Ventes = () => {
   }
 
 // Générer un PDF
+// Générer un PDF
 const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
@@ -745,14 +746,10 @@ const generatePDF = async (vente) => {
     let clientY = sectionTop + 5;
     const clientLeftMargin = margins.left + 5;
     
-    // Ajouter "INFORMATIONS CLIENT" dans la section INFORMATIONS CLIENT
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('INFORMATIONS CLIENT', clientLeftMargin, clientY);
+    // SUPPRIMÉ: La ligne "INFORMATIONS CLIENT" a été retirée
+    clientY += 5; // Ajustement pour commencer plus bas
     
     // "FACTURE VENTE" et statut sur la même ligne
-    clientY += 5;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     
