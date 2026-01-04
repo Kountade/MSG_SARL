@@ -574,7 +574,7 @@ const Ventes = () => {
     return entrepots
   }
 
-  // Générer un PDF
+// Générer un PDF
 const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
@@ -738,12 +738,6 @@ const generatePDF = async (vente) => {
     doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
     yPosition += 8;
     
-    // Titre principal de la facture
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('FACTURE VENTE', pageWidth / 2, yPosition, { align: 'center' });
-    yPosition += 6;
-    
     const sectionTop = yPosition;
     const sectionHeight = 40;
     const sectionLeftWidth = contentWidth * 0.6;
@@ -751,7 +745,7 @@ const generatePDF = async (vente) => {
     let clientY = sectionTop + 5;
     const clientLeftMargin = margins.left + 5;
     
-    // Ajouter "FACTURE VENTE NON SOLDÉ" dans la section INFORMATIONS CLIENT
+    // Ajouter "INFORMATIONS CLIENT" dans la section INFORMATIONS CLIENT
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(0, 0, 0);
