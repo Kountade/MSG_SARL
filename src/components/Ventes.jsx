@@ -575,7 +575,6 @@ const Ventes = () => {
   }
 
 // Générer un PDF
-// Générer un PDF
 const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
@@ -596,8 +595,8 @@ const generatePDF = async (vente) => {
     });
     
     const pageWidth = 210;
-    const pageHeight = 297; // Hauteur A4
-    const margins = { left: 10, right: 10, top: 15, bottom: 10 }; // Réduit le bottom
+    const pageHeight = 297;
+    const margins = { left: 10, right: 10, top: 15, bottom: 10 };
     const contentWidth = pageWidth - margins.left - margins.right;
     
     let yPosition = margins.top;
@@ -740,91 +739,11 @@ const generatePDF = async (vente) => {
     yPosition += 8;
     
     const sectionTop = yPosition;
-    const sectionHeight = 40;
-    const sectionLeftWidth = contentWidth * 0.6;
     
-    let clientY = sectionTop + 5;
-    const clientLeftMargin = margins.left + 5;
-    
-    // SUPPRIMÉ: La ligne "INFORMATIONS CLIENT" a été retirée
-    clientY += 5; // Ajustement pour commencer plus bas
-    
-    // "FACTURE VENTE" et statut sur la même ligne
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    
-    const statutVente = venteActualisee.statut === 'confirmee' && 
-                       parseFloat(venteActualisee.montant_restant || 0) === 0 
-                       ? 'SOLDÉ' : 'NON SOLDÉ';
-    
-    // Afficher "FACTURE VENTE" en noir
-    doc.setTextColor(0, 0, 0);
-    const factureText = 'FACTURE VENTE ';
-    doc.text(factureText, clientLeftMargin, clientY);
-    
-    // Calculer la position de départ pour le rectangle rouge
-    const factureTextWidth = doc.getTextWidth(factureText);
-    const statutX = clientLeftMargin + factureTextWidth;
-    
-    // Calculer la largeur du statut pour dimensionner le rectangle
-    doc.setFont('helvetica', 'bold');
-    const statutTextWidth = doc.getTextWidth(statutVente);
-    const padding = 5; // Padding réduit pour le rectangle
-    const rectWidth = statutTextWidth + (padding * 2);
-    const rectHeight = 6;
-    
-    // Dessiner le rectangle rouge (juste les bordures)
-    doc.setDrawColor(255, 0, 0); // Rouge pour les bordures
-    doc.setFillColor(255, 255, 255); // Blanc pour l'intérieur
-    doc.setLineWidth(0.5);
-    doc.rect(statutX - -1, clientY - rectHeight + 1, rectWidth, rectHeight, 'FD'); // FD = Fill and Draw
-    
-    // Ajouter le statut en rouge à l'intérieur du rectangle
-    doc.setTextColor(255, 0, 0); // Rouge
-    doc.text(statutVente, statutX + padding - 3, clientY - 1);
-    
-    clientY += 8;
-    doc.setTextColor(0, 0, 0);
-    
-    doc.setFontSize(10);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Dénomination :', clientLeftMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
-    doc.text(clientNom, clientLeftMargin + 28, clientY);
-    clientY += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Adresse :', clientLeftMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
-    doc.text(clientAdresse, clientLeftMargin + 28, clientY);
-    clientY += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Téléphone :', clientLeftMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
-    doc.text(clientTel, clientLeftMargin + 28, clientY);
-    clientY += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Email :', clientLeftMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
-    doc.text(clientEmail, clientLeftMargin + 28, clientY);
-    clientY += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Mode de paiement :', clientLeftMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
-    doc.text(modePaiement, clientLeftMargin + 40, clientY);
-    
-    let factureY = sectionTop + 8;
-    const factureLeftMargin = margins.left + sectionLeftWidth + 10;
-    
+    // SECTION INFOS FACTURE (GAUCHE)
+    let factureY = sectionTop + 5;
+    const factureLeftMargin = margins.left + 5;
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('DATE :', factureLeftMargin, factureY);
@@ -832,21 +751,93 @@ const generatePDF = async (vente) => {
     const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
     doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 20, factureY);
     factureY += 5;
-    
+
     doc.setFont('helvetica', 'bold');
     doc.text('N° Client :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
     const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
     doc.text(clientCode, factureLeftMargin + 30, factureY);
     factureY += 5;
-    
+
     doc.setFont('helvetica', 'bold');
     doc.text('FACTURE N° :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
     const factureNum = venteActualisee.numero_vente || 'N/A';
     doc.text(factureNum, factureLeftMargin + 30, factureY);
     
-    yPosition = sectionTop + sectionHeight + 15;
+    // "FACTURE VENTE" et statut
+    factureY += 5;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+
+    const statutVente = venteActualisee.statut === 'confirmee' && 
+                       parseFloat(venteActualisee.montant_restant || 0) === 0 
+                       ? 'SOLDÉ' : 'NON SOLDÉ';
+
+    doc.setTextColor(0, 0, 0);
+    const factureText = 'FACTURE VENTE ';
+    doc.text(factureText, factureLeftMargin, factureY);
+
+    const factureTextWidth = doc.getTextWidth(factureText);
+    const statutX = factureLeftMargin + factureTextWidth;
+
+    const statutTextWidth = doc.getTextWidth(statutVente);
+    const padding = 5;
+    const rectWidth = statutTextWidth + (padding * 2);
+    const rectHeight = 6;
+
+    doc.setDrawColor(255, 0, 0);
+    doc.setFillColor(255, 255, 255);
+    doc.setLineWidth(0.5);
+    doc.rect(statutX - -1, factureY - rectHeight + 1, rectWidth, rectHeight, 'FD');
+
+    doc.setTextColor(255, 0, 0);
+    doc.text(statutVente, statutX + padding - 3, factureY - 1);
+    
+    // SECTION CLIENT (DROITE)
+    let clientY = sectionTop + 5;
+    const clientRightMargin = pageWidth - margins.right - 60;
+
+    // Informations client - TOUT EN NOIR
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0); // COULEUR NOIRE
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Dénomination :', clientRightMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
+    doc.text(clientNom, clientRightMargin + 32, clientY);
+    clientY += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Adresse :', clientRightMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
+    doc.text(clientAdresse, clientRightMargin + 32, clientY);
+    clientY += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Téléphone :', clientRightMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
+    doc.text(clientTel, clientRightMargin + 32, clientY);
+    clientY += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Email :', clientRightMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
+    doc.text(clientEmail, clientRightMargin + 32, clientY);
+    clientY += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mode de paiement :', clientRightMargin, clientY);
+    doc.setFont('helvetica', 'normal');
+    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
+    doc.text(modePaiement, clientRightMargin + 44, clientY);
+
+    // Déterminer la position Y la plus basse
+    yPosition = Math.max(factureY + 5, clientY + 10);
     
     const colWidths = {
       code: 35,
@@ -917,7 +908,7 @@ const generatePDF = async (vente) => {
 
     if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
       venteActualisee.lignes_vente.forEach((ligne, index) => {
-        if (yPosition + ligneHeight > 270) { // Réinitialisé à 270
+        if (yPosition + ligneHeight > 270) {
           doc.addPage();
           yPosition = margins.top + 15;
           
@@ -1027,7 +1018,6 @@ const generatePDF = async (vente) => {
     const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
     const totalTTC = totalHT;
     
-    // Fonction pour convertir le montant en lettres
     const nombreEnLettres = (montant) => {
       const nombres = {
         0: 'zéro', 1: 'un', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
@@ -1041,7 +1031,6 @@ const generatePDF = async (vente) => {
 
       const entier = Math.floor(montant);
       
-      // Montants courants prédéfinis
       if (entier === 11000) return 'Onze Mille';
       if (entier === 10000) return 'Dix Mille';
       if (entier === 5000) return 'Cinq Mille';
@@ -1052,7 +1041,6 @@ const generatePDF = async (vente) => {
       if (entier === 50000) return 'Cinquante Mille';
       if (entier === 100000) return 'Cent Mille';
       
-      // Pour d'autres montants
       if (entier < 1000) {
         if (nombres[entier]) return nombres[entier];
         if (entier < 100) {
@@ -1139,72 +1127,60 @@ const generatePDF = async (vente) => {
     doc.setFontSize(11);
     doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
     
-    // SECTION : "Arrêtée la présente facture..." centrée avec montant en rouge
+    // SECTION : "Arrêtée la présente facture..."
     yPosition = totalSectionTop + totalBoxHeight + 10;
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     
-    // Construire le texte complet
     const montantEnLettres = nombreEnLettres(totalTTC);
     const texteComplet = `Arrêtée la présente facture à la somme de : `;
     const montantTexte = `${montantEnLettres} Franc CFA`;
     
-    // Calculer la largeur totale pour centrer correctement
     doc.setFont('helvetica', 'normal');
     const texteCompletWidth = doc.getTextWidth(texteComplet);
     doc.setFont('helvetica', 'bold');
     const montantTexteWidth = doc.getTextWidth(montantTexte);
     const largeurTotale = texteCompletWidth + montantTexteWidth;
     
-    // Calculer la position de départ pour centrer l'ensemble
     const startX = (pageWidth - largeurTotale) / 2;
     
-    // Première partie en noir (normal)
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     doc.text(texteComplet, startX, yPosition);
     
-    // Seconde partie (montant en lettres) en rouge gras
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 0, 0); // Rouge
+    doc.setTextColor(255, 0, 0);
     doc.text(montantTexte, startX + texteCompletWidth, yPosition);
     
-    // Pied de page - COMPLÈTEMENT EN BAS
-    const piedPageY = pageHeight - 5; // Presque tout en bas
+    // Pied de page
+    const piedPageY = pageHeight - 5;
     
-    // Ligne de séparation très fine
     doc.setDrawColor(220, 220, 220);
     doc.setLineWidth(0.1);
     doc.line(margins.left, piedPageY - 8, pageWidth - margins.right, piedPageY - 8);
     
-    // Informations de la société dans le pied de page - EN BAS
-    doc.setFontSize(8); // Légèrement plus petit
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     
     const infoSocietePied = `RCCM : ; Adresse : LYMANYA ; Tél : +225 05 45 08 75 1008 05 79 51 7`;
     doc.text(infoSocietePied, pageWidth / 2, piedPageY - 4, { align: 'center' });
     
-    // Numéro de page dans le pied de page - EN BAS
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       
-      // Pied de page - informations de la société
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
       
-      // Ligne de séparation très fine
       doc.setDrawColor(220, 220, 220);
       doc.setLineWidth(0.1);
       doc.line(margins.left, piedPageY - 8, pageWidth - margins.right, piedPageY - 8);
       
-      // Informations de la société - EN BAS
       doc.text(infoSocietePied, pageWidth / 2, piedPageY - 4, { align: 'center' });
       
-      // Numéro de page centré - EN BAS
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(100, 100, 100);
