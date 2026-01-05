@@ -740,67 +740,27 @@ const generatePDF = async (vente) => {
     
     const sectionTop = yPosition;
     
-    // SECTION INFOS FACTURE (GAUCHE)
-    let factureY = sectionTop + 5;
-    const factureLeftMargin = margins.left + 5;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DATE :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
-    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 20, factureY);
-    factureY += 5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('N° Client :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
-    doc.text(clientCode, factureLeftMargin + 30, factureY);
-    factureY += 5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('FACTURE N° :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const factureNum = venteActualisee.numero_vente || 'N/A';
-    doc.text(factureNum, factureLeftMargin + 30, factureY);
-    
-    // "FACTURE VENTE" et statut
-    factureY += 5;
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-
-    const statutVente = venteActualisee.statut === 'confirmee' && 
-                       parseFloat(venteActualisee.montant_restant || 0) === 0 
-                       ? 'SOLDÉ' : 'NON SOLDÉ';
-
-    doc.setTextColor(0, 0, 0);
-    const factureText = 'FACTURE VENTE ';
-    doc.text(factureText, factureLeftMargin, factureY);
-
-    const factureTextWidth = doc.getTextWidth(factureText);
-    const statutX = factureLeftMargin + factureTextWidth;
-
-    const statutTextWidth = doc.getTextWidth(statutVente);
-    const padding = 5;
-    const rectWidth = statutTextWidth + (padding * 2);
-    const rectHeight = 6;
-
-    doc.setDrawColor(255, 0, 0);
-    doc.setFillColor(255, 255, 255);
-    doc.setLineWidth(0.5);
-    doc.rect(statutX - -1, factureY - rectHeight + 1, rectWidth, rectHeight, 'FD');
-
-    doc.setTextColor(255, 0, 0);
-    doc.text(statutVente, statutX + padding - 3, factureY - 1);
-    
-    // SECTION CLIENT (DROITE)
+    // SECTION INFOS CLIENT (DROITE)
     let clientY = sectionTop + 5;
     const clientRightMargin = pageWidth - margins.right - 60;
 
+    // Titre "CLIENT" avec soulignement
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text('CLIENT', clientRightMargin + 7, clientY, { align: 'center' });
+
+    // Soulignement sous "CLIENT"
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.3);
+    const clientTitleWidth = doc.getTextWidth('CLIENT');
+    doc.line(clientRightMargin + (15 - clientTitleWidth) / 2, clientY + 1, clientRightMargin + (17 - clientTitleWidth) / 2 + clientTitleWidth, clientY + 1);
+
+    clientY += 8;
+
     // Informations client - TOUT EN NOIR
     doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0); // COULEUR NOIRE
+    doc.setTextColor(0, 0, 0);
 
     doc.setFont('helvetica', 'bold');
     doc.text('Dénomination :', clientRightMargin, clientY);
@@ -835,6 +795,64 @@ const generatePDF = async (vente) => {
     doc.setFont('helvetica', 'normal');
     const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
     doc.text(modePaiement, clientRightMargin + 44, clientY);
+    
+    // SECTION INFOS FACTURE (GAUCHE)
+    let factureY = sectionTop + 5;
+    const factureLeftMargin = margins.left + 5;
+
+    // 1. FACTURE VENTE et statut (première position)
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+
+    const statutVente = venteActualisee.statut === 'confirmee' && 
+                       parseFloat(venteActualisee.montant_restant || 0) === 0 
+                       ? 'SOLDÉ' : 'NON SOLDÉ';
+
+    doc.setTextColor(0, 0, 0);
+    const factureText = 'FACTURE VENTE ';
+    doc.text(factureText, factureLeftMargin, factureY);
+
+    const factureTextWidth = doc.getTextWidth(factureText);
+    const statutX = factureLeftMargin + factureTextWidth;
+
+    const statutTextWidth = doc.getTextWidth(statutVente);
+    const padding = 5;
+    const rectWidth = statutTextWidth + (padding * 2);
+    const rectHeight = 6;
+
+    doc.setDrawColor(255, 0, 0);
+    doc.setFillColor(255, 255, 255);
+    doc.setLineWidth(0.5);
+    doc.rect(statutX - -1, factureY - rectHeight + 1, rectWidth, rectHeight, 'FD');
+
+    doc.setTextColor(255, 0, 0);
+    doc.text(statutVente, statutX + padding - 3, factureY - 1);
+    
+    factureY += 8;
+
+    // 2. DATE (deuxième position)
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DATE :', factureLeftMargin, factureY);
+    doc.setFont('helvetica', 'normal');
+    const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
+    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 20, factureY);
+    factureY += 5;
+
+    // 3. FACTURE N° (troisième position)
+    doc.setFont('helvetica', 'bold');
+    doc.text('FACTURE N° :', factureLeftMargin, factureY);
+    doc.setFont('helvetica', 'normal');
+    const factureNum = venteActualisee.numero_vente || 'N/A';
+    doc.text(factureNum, factureLeftMargin + 30, factureY);
+    factureY += 5;
+
+    // 4. N° Client (quatrième position)
+    doc.setFont('helvetica', 'bold');
+    doc.text('N° Client :', factureLeftMargin, factureY);
+    doc.setFont('helvetica', 'normal');
+    const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
+    doc.text(clientCode, factureLeftMargin + 30, factureY);
 
     // Déterminer la position Y la plus basse
     yPosition = Math.max(factureY + 5, clientY + 10);
