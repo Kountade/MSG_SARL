@@ -35,12 +35,16 @@ import {
   StepContent,
   CircularProgress,
   alpha,
-  useTheme,
   Avatar,
   InputAdornment,
   Divider,
   TablePagination,
-  LinearProgress
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Collapse
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -58,7 +62,13 @@ import {
   Warehouse as WarehouseIcon,
   Refresh as RefreshIcon,
   FilterList as FilterIcon,
-  AttachMoney as MoneyIcon
+  AttachMoney as MoneyIcon,
+  Info as InfoIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Inventory as InventoryIcon
 } from '@mui/icons-material'
 
 import jsPDF from 'jspdf'
@@ -77,6 +87,7 @@ const Ventes = () => {
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false)
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [openPaiementDialog, setOpenPaiementDialog] = useState(false)
+  const [openDebugDialog, setOpenDebugDialog] = useState(false)
   const [selectedVente, setSelectedVente] = useState(null)
   const [editingVente, setEditingVente] = useState(null)
   const [venteToDelete, setVenteToDelete] = useState(null)
@@ -89,6 +100,8 @@ const Ventes = () => {
   const [activeStep, setActiveStep] = useState(0)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [debugInfo, setDebugInfo] = useState([])
+  const [expandedDebug, setExpandedDebug] = useState(false)
 
   // Couleurs de l'entreprise
   const darkCayn = '#003C3f'
@@ -113,6 +126,15 @@ const Ventes = () => {
     reference: '',
     notes: ''
   })
+
+  // Formatage des nombres
+  const formatNumber = (number) => {
+    if (typeof number !== 'number') number = parseFloat(number) || 0
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(number)
+  }
 
   // Récupérer les données
   const fetchData = () => {
@@ -142,6 +164,39 @@ const Ventes = () => {
     fetchData()
   }, [])
 
+  // Fonction de debug pour vérifier les stocks
+  const debugStocks = async () => {
+    const debugData = []
+    
+    try {
+      // Vérifier tous les produits
+      for (const produit of produits) {
+        const response = await AxiosInstance.get(`stock-disponible/?produit=${produit.id}`)
+        const stocks = response.data?.stocks || []
+        
+        debugData.push({
+          produit: `${produit.nom} (${produit.code})`,
+          stocks: stocks.map(s => ({
+            entrepot: s.entrepot_nom,
+            total: s.quantite_totale,
+            reserve: s.quantite_reservee,
+            disponible: s.quantite_disponible,
+            alerte: s.stock_alerte,
+            en_rupture: s.en_rupture,
+            faible: s.stock_faible
+          }))
+        })
+      }
+      
+      setDebugInfo(debugData)
+      setOpenDebugDialog(true)
+      
+    } catch (error) {
+      console.error('Erreur debug:', error)
+      setSnackbar({ open: true, message: 'Erreur lors du debug', severity: 'error' })
+    }
+  }
+
   // Fonction pour rafraîchir les données d'une vente spécifique
   const refreshVenteDetails = async (venteId) => {
     try {
@@ -155,19 +210,76 @@ const Ventes = () => {
     }
   }
 
-  // Vérifier les stocks disponibles pour un produit dans un entrepôt
+  // Fonction pour vérifier les stocks disponibles - VERSION AMÉLIORÉE
   const checkStockDisponible = async (produitId, entrepotId) => {
-    if (!produitId || !entrepotId) return null
+    if (!produitId || !entrepotId) {
+      console.log("Produit ou entrepôt non spécifié");
+      return { disponible: 0, total: 0, reserve: 0 };
+    }
     
     try {
-      const response = await AxiosInstance.get(`stock-disponible/?produit=${produitId}`)
-      const stock = response.data.stocks.find(s => s.entrepot_id === parseInt(entrepotId))
-      return stock ? stock.quantite_disponible : 0
+      console.log(`Vérification stock pour produit ${produitId}, entrepôt ${entrepotId}`);
+      
+      // Essayer d'abord l'API stock-detail
+      try {
+        const response = await AxiosInstance.get(`stock-detail/?produit=${produitId}&entrepot=${entrepotId}`);
+        
+        if (response.data) {
+          const stock = response.data;
+          console.log("Détails du stock (stock-detail):", stock);
+          
+          return {
+            disponible: stock.quantite_disponible || 0,
+            total: stock.quantite || 0,
+            reserve: stock.quantite_reservee || 0,
+            stock: stock
+          };
+        }
+      } catch (detailError) {
+        console.log("API stock-detail échouée, tentative avec stock-disponible:", detailError);
+      }
+      
+      // Fallback à l'API stock-disponible
+      const response = await AxiosInstance.get(`stock-disponible/?produit=${produitId}`);
+      const stock = response.data?.stocks?.find(s => s.entrepot_id === parseInt(entrepotId));
+      
+      if (stock) {
+        console.log("Détails du stock (stock-disponible):", stock);
+        return {
+          disponible: stock.quantite_disponible || 0,
+          total: stock.quantite_totale || 0,
+          reserve: stock.quantite_reservee || 0,
+          stock: stock
+        };
+      }
+      
+      console.log(`Aucun stock trouvé pour produit ${produitId} dans entrepôt ${entrepotId}`);
+      return { disponible: 0, total: 0, reserve: 0 };
+      
     } catch (error) {
-      console.error('Erreur lors de la vérification du stock:', error)
-      return 0
+      console.error('Erreur lors de la vérification du stock:', error);
+      
+      // En dernier recours, essayer de récupérer directement depuis les produits
+      try {
+        const produit = produits.find(p => p.id == produitId);
+        if (produit && produit.stocks_entrepots) {
+          const stock = produit.stocks_entrepots.find(s => s.entrepot == entrepotId);
+          if (stock) {
+            return {
+              disponible: stock.quantite_disponible || 0,
+              total: stock.quantite || 0,
+              reserve: stock.quantite_reservee || 0,
+              stock: stock
+            };
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Fallback échoué:', fallbackError);
+      }
+      
+      return { disponible: 0, total: 0, reserve: 0 };
     }
-  }
+  };
 
   // Composant de carte de statistique
   const StatsCard = ({ icon, title, value, subtitle }) => (
@@ -229,28 +341,22 @@ const Ventes = () => {
     setOpenDialog(true)
   }
 
-  // Ouvrir le dialog pour modifier une vente - CORRIGÉ
+  // Ouvrir le dialog pour modifier une vente
   const handleOpenEditDialog = async (vente) => {
     setEditingVente(vente)
     
     try {
-      // Récupérer les données actualisées de la vente
       const venteActualisee = await refreshVenteDetails(vente.id) || vente
       
-      // Décodage sécurisé du client
       let clientId = ''
       if (venteActualisee.client) {
-        // Si client est un objet
         if (typeof venteActualisee.client === 'object' && venteActualisee.client !== null) {
           clientId = venteActualisee.client.id || venteActualisee.client.toString()
-        } 
-        // Si client est juste un ID
-        else if (typeof venteActualisee.client === 'number' || typeof venteActualisee.client === 'string') {
+        } else if (typeof venteActualisee.client === 'number' || typeof venteActualisee.client === 'string') {
           clientId = venteActualisee.client.toString()
         }
       }
       
-      // Préparer les données du formulaire
       const formData = {
         client: clientId,
         remise: parseFloat(venteActualisee.remise) || 0,
@@ -293,7 +399,6 @@ const Ventes = () => {
 
   // Ouvrir le dialog de détails
   const handleOpenDetailsDialog = async (vente) => {
-    // Rafraîchir les données de la vente avant d'afficher les détails
     const venteActualisee = await refreshVenteDetails(vente.id) || vente
     setSelectedVente(venteActualisee)
     setOpenDetailsDialog(true)
@@ -319,7 +424,6 @@ const Ventes = () => {
 
   // Ouvrir le dialog de paiement
   const handleOpenPaiementDialog = async (vente) => {
-    // Rafraîchir les données de la vente avant d'afficher le dialog de paiement
     const venteActualisee = await refreshVenteDetails(vente.id) || vente
     setVentePourPaiement(venteActualisee)
     setFormPaiement({
@@ -343,6 +447,12 @@ const Ventes = () => {
     })
   }
 
+  // Fermer le dialog de debug
+  const handleCloseDebugDialog = () => {
+    setOpenDebugDialog(false)
+    setDebugInfo([])
+  }
+
   // Gérer les changements du formulaire
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -361,48 +471,80 @@ const Ventes = () => {
     }))
   }
 
-  // Gérer les changements des lignes de vente
+  // Gérer les changements des lignes de vente - VERSION AMÉLIORÉE
   const handleLigneChange = async (index, field, value) => {
-    const updatedLignes = [...formData.lignes_vente]
+    const updatedLignes = [...formData.lignes_vente];
     
     if (field === 'produit' && value) {
-      const produitSelectionne = produits.find(p => p.id == value)
+      const produitSelectionne = produits.find(p => p.id == value);
       if (produitSelectionne) {
         updatedLignes[index] = {
           ...updatedLignes[index],
           produit: value,
           prix_unitaire: produitSelectionne.prix_vente,
-          entrepot: updatedLignes[index].entrepot || '' // Reset entrepot si changement de produit
+          entrepot: updatedLignes[index].entrepot || ''
+        };
+        
+        // Si on a déjà un entrepôt, vérifier le stock
+        if (updatedLignes[index].entrepot) {
+          const stockInfo = await checkStockDisponible(value, updatedLignes[index].entrepot);
+          console.log(`Stock après changement produit:`, stockInfo);
+          
+          if (updatedLignes[index].quantite > stockInfo.disponible) {
+            setSnackbar({ 
+              open: true, 
+              message: `Stock insuffisant: ${stockInfo.disponible} unités disponibles (total: ${stockInfo.total}, réservé: ${stockInfo.reserve})`, 
+              severity: 'warning' 
+            });
+          }
         }
       }
     } else if (field === 'entrepot' && value && updatedLignes[index].produit) {
       updatedLignes[index] = {
         ...updatedLignes[index],
         entrepot: value
-      }
+      };
       
-      // Vérifier le stock disponible
-      const stock = await checkStockDisponible(updatedLignes[index].produit, value)
-      if (stock !== null && stock < updatedLignes[index].quantite) {
+      // Vérifier le stock disponible avec plus de détails
+      const stockInfo = await checkStockDisponible(updatedLignes[index].produit, value);
+      console.log(`Stock pour ${updatedLignes[index].produit} dans entrepôt ${value}:`, stockInfo);
+      
+      if (stockInfo.disponible < updatedLignes[index].quantite) {
         setSnackbar({ 
           open: true, 
-          message: `Stock insuffisant dans cet entrepôt: ${stock} unités disponibles`, 
+          message: `Stock insuffisant: ${stockInfo.disponible} unités disponibles (total: ${stockInfo.total}, réservé: ${stockInfo.reserve})`, 
           severity: 'warning' 
-        })
+        });
       }
     } else {
       updatedLignes[index] = {
         ...updatedLignes[index],
         [field]: field === 'quantite' ? parseInt(value) || 1 : 
                  field === 'prix_unitaire' ? parseFloat(value) || 0 : value
+      };
+      
+      // Si quantité modifiée, vérifier le stock
+      if (field === 'quantite' && updatedLignes[index].produit && updatedLignes[index].entrepot) {
+        const stockInfo = await checkStockDisponible(
+          updatedLignes[index].produit, 
+          updatedLignes[index].entrepot
+        );
+        
+        if (parseInt(value) > stockInfo.disponible) {
+          setSnackbar({ 
+            open: true, 
+            message: `Stock insuffisant: ${stockInfo.disponible} unités disponibles (total: ${stockInfo.total}, réservé: ${stockInfo.reserve})`, 
+            severity: 'warning' 
+          });
+        }
       }
     }
 
     setFormData(prev => ({
       ...prev,
       lignes_vente: updatedLignes
-    }))
-  }
+    }));
+  };
 
   // Ajouter une ligne de vente
   const addLigneVente = () => {
@@ -435,7 +577,7 @@ const Ventes = () => {
   }
 
   // Valider l'étape client
-  const validerEtapeClient = () => {
+  const validerEtapeClient = async () => {
     const lignesValides = formData.lignes_vente.filter(ligne => 
       ligne.produit && ligne.entrepot && ligne.quantite > 0 && ligne.prix_unitaire
     )
@@ -443,6 +585,21 @@ const Ventes = () => {
     if (lignesValides.length === 0) {
       setSnackbar({ open: true, message: 'Ajoutez au moins un produit à la vente', severity: 'error' })
       return false
+    }
+
+    // Vérifier les stocks pour toutes les lignes
+    for (const ligne of lignesValides) {
+      const stockInfo = await checkStockDisponible(ligne.produit, ligne.entrepot);
+      if (ligne.quantite > stockInfo.disponible) {
+        const produit = produits.find(p => p.id == ligne.produit);
+        const entrepot = entrepots.find(e => e.id == ligne.entrepot);
+        setSnackbar({ 
+          open: true, 
+          message: `Stock insuffisant pour ${produit?.nom} dans ${entrepot?.nom}: ${stockInfo.disponible} disponibles (total: ${stockInfo.total}, réservé: ${stockInfo.reserve})`, 
+          severity: 'error' 
+        });
+        return false;
+      }
     }
 
     setActiveStep(1)
@@ -462,6 +619,8 @@ const Ventes = () => {
 
     setSubmitting(true)
 
+    // Important: Ne PAS envoyer le champ 'created_by' depuis le frontend
+    // Le backend gère automatiquement ce champ à partir de l'utilisateur authentifié
     const submitData = {
       client: formData.client || null,
       remise: parseFloat(formData.remise || 0),
@@ -477,7 +636,7 @@ const Ventes = () => {
       }))
     }
 
-    console.log("Données soumises (création):", submitData)
+    console.log("Données soumises (création) - SANS created_by:", submitData)
 
     AxiosInstance.post('ventes/', submitData)
       .then((response) => {
@@ -487,9 +646,15 @@ const Ventes = () => {
       })
       .catch((err) => {
         console.error('Erreur création vente:', err.response?.data || err)
-        const errorMessage = err.response?.data?.error || 
-                           err.response?.data?.detail || 
-                           'Erreur lors de la création de la vente'
+        let errorMessage = err.response?.data?.error || 
+                         err.response?.data?.detail || 
+                         'Erreur lors de la création de la vente'
+      
+        // Si c'est l'erreur created_by, expliquez-la
+        if (errorMessage.includes('created_by')) {
+          errorMessage = "Erreur de création: Le champ 'created_by' est géré automatiquement par le système"
+        }
+      
         setSnackbar({ open: true, message: errorMessage, severity: 'error' })
       })
       .finally(() => {
@@ -510,6 +675,7 @@ const Ventes = () => {
 
     setSubmitting(true)
 
+    // Important: Ne PAS envoyer le champ 'created_by' dans les modifications
     const submitData = {
       client: formData.client || null,
       remise: parseFloat(formData.remise || 0),
@@ -525,28 +691,28 @@ const Ventes = () => {
       }))
     }
 
-    console.log("Données soumises (modification):", submitData)
-    console.log("Vente ID:", editingVente.id)
+    console.log("Données soumises (modification) - SANS created_by:", submitData)
 
-    // Utiliser PATCH
     AxiosInstance.patch(`ventes/${editingVente.id}/`, submitData)
       .then(async (response) => {
         setSnackbar({ open: true, message: 'Vente modifiée avec succès', severity: 'success' })
         
-        // Rafraîchir les données de cette vente spécifique
         await refreshVenteDetails(editingVente.id)
-        
-        // Rafraîchir toutes les données
         fetchData()
-        
         handleCloseDialog()
       })
       .catch((err) => {
         console.error('Erreur modification vente:', err.response?.data || err)
-        const errorMessage = err.response?.data?.error || 
-                           err.response?.data?.detail || 
-                           err.response?.data?.lignes_vente?.[0] ||
-                           'Erreur lors de la modification de la vente'
+        let errorMessage = err.response?.data?.error || 
+                         err.response?.data?.detail || 
+                         err.response?.data?.lignes_vente?.[0] ||
+                         'Erreur lors de la modification de la vente'
+        
+        // Si c'est l'erreur created_by, expliquez-la
+        if (errorMessage.includes('created_by')) {
+          errorMessage = "Erreur de modification: Le champ 'created_by' est géré automatiquement par le système"
+        }
+        
         setSnackbar({ open: true, message: errorMessage, severity: 'error' })
       })
       .finally(() => {
@@ -564,12 +730,8 @@ const Ventes = () => {
       .then(async (response) => {
         setSnackbar({ open: true, message: 'Paiement enregistré avec succès', severity: 'success' })
         
-        // Rafraîchir les données de cette vente spécifique
         await refreshVenteDetails(ventePourPaiement.id)
-        
-        // Rafraîchir toutes les données
         fetchData()
-        
         handleClosePaiementDialog()
       })
       .catch((err) => {
@@ -585,686 +747,600 @@ const Ventes = () => {
       })
   }
 
-  // Formatage des nombres
-  const formatNumber = (number) => {
-    if (typeof number !== 'number') number = parseFloat(number) || 0
-    return new Intl.NumberFormat('fr-FR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(number)
-  }
-
   // Obtenir les entrepôts disponibles pour un produit
   const getEntrepotsForProduit = (produitId) => {
     if (!produitId) return entrepots
     
-    // Dans une implémentation réelle, on filtrerait les entrepôts qui ont ce produit en stock
-    return entrepots
+    // Filtrer les entrepôts qui ont ce produit en stock
+    const produit = produits.find(p => p.id == produitId);
+    if (produit && produit.stocks_entrepots) {
+      const entrepotIds = produit.stocks_entrepots
+        .filter(stock => stock.quantite_disponible > 0)
+        .map(stock => stock.entrepot);
+      
+      return entrepots.filter(e => entrepotIds.includes(e.id));
+    }
+    
+    return entrepots;
   }
 
   // Générer un PDF
-const generatePDF = async (vente) => {
-  try {
-    const venteActualisee = await refreshVenteDetails(vente.id) || vente;
-    
-    if (!venteActualisee) {
+  const generatePDF = async (vente) => {
+    try {
+      const venteActualisee = await refreshVenteDetails(vente.id) || vente;
+      
+      if (!venteActualisee) {
+        setSnackbar({ 
+          open: true, 
+          message: 'Impossible de récupérer les données de la vente', 
+          severity: 'error' 
+        });
+        return false;
+      }
+
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margins = { left: 10, right: 10, top: 15, bottom: 10 };
+      const contentWidth = pageWidth - margins.left - margins.right;
+      
+      let yPosition = margins.top;
+      
+      const blueColor = [0, 51, 153];
+      const lightBlueColor = [230, 240, 255];
+      const headerBlue = [41, 128, 185];
+      
+      // ============================================================
+      // EN-TÊTE BLEU EN HAUT
+      // ============================================================
+     
+      doc.setFillColor(...blueColor);
+      doc.rect(0, 6, pageWidth, 10, 'F');
+
+      // Titre réduit et déplacé à gauche (en blanc pour contraster avec le fond bleu)
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('PROFORMA INVOICE', margins.left, 25);
+
+      
+      // Logo à droite (en blanc)
+      try {
+        const img = new Image();
+        
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const logoWidth = 40;
+            const logoHeight = 15;
+            
+            canvas.width = logoWidth * 2;
+            canvas.height = logoHeight * 4;
+            
+            const scale = Math.min(
+              canvas.width / img.width,
+              canvas.height / img.height
+            );
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            const x = (canvas.width - scaledWidth) / 2;
+            const y = (canvas.height - scaledHeight) / 2;
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+            
+            const dataURL = canvas.toDataURL('image/png');
+            const logoX = pageWidth - margins.right - logoWidth;
+            doc.addImage(dataURL, 'PNG', logoX, 8, logoWidth, logoHeight);
+            
+            resolve();
+          };
+          
+          img.onerror = () => {
+            doc.setFillColor(255, 255, 255);
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            const textX = pageWidth - margins.right - 30;
+            doc.text('MGS', textX, 10);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.text('SARL', textX, 14);
+            
+            resolve();
+          };
+          
+          img.src = logo;
+          img.crossOrigin = 'anonymous';
+        });
+        
+      } catch (error) {
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        const textX = pageWidth - margins.right - 30;
+        doc.text('MGS', textX, 10);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('SARL', textX, 14);
+      }
+      
+      yPosition = 25;
+      
+      // Informations société
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('AFRITEXIA', margins.left, yPosition + 6);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Address: Socaci Compound, Sakirwa Village,Gasharu Cell, Kicukiro, Kigali, Rwanda', margins.left, yPosition + 11);
+      doc.text('Email: - Contact@kanis.rw Tin No. 112024746', margins.left, yPosition + 16);
+      doc.text('Phone: :- +250 782 799 120', margins.left, yPosition + 21);
+      doc.text('TIN No.: 112024746', margins.left, yPosition + 26);
+
+      
+      // Section client - SANS RECTANGLE
+      const clientRectY = yPosition + 25;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...blueColor);
+      doc.text('TO:', margins.left + 3, clientRectY + 7);
+      
+      const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
+      doc.text(clientNom.toUpperCase(), margins.left + 15, clientRectY + 7);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
+      if (clientAdresse) doc.text(`Address: ${clientAdresse}`, margins.left + 3, clientRectY + 15);
+      
+      const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
+      if (clientTel) doc.text(`Phone: ${clientTel}`, margins.left + 3, clientRectY + 22);
+      
+      const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
+      if (clientEmail) doc.text(`Email: ${clientEmail}`, margins.left + 3, clientRectY + 29);
+      
+      // Informations facture
+      const infoFactureX = pageWidth - margins.right - 50;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...blueColor);
+      doc.text('Date:', infoFactureX, clientRectY - 20);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
+      doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), infoFactureX + 15, clientRectY - 20);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...blueColor);
+      doc.text('Invoice No.:', infoFactureX, clientRectY - 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      const factureNum = venteActualisee.numero_vente || 'N/A';
+      doc.text(factureNum, infoFactureX + 25, clientRectY - 15);
+
+      yPosition = clientRectY + 45;
+      
+      // Tableau des produits
+      const colWidths = {
+        description: 100,
+        qty: 20,
+        unitPrice: 40,
+        total: 30
+      };
+      
+      const colPositions = {
+        description: margins.left,
+        qty: margins.left + colWidths.description,
+        unitPrice: margins.left + colWidths.description + colWidths.qty,
+        total: margins.left + colWidths.description + colWidths.qty + colWidths.unitPrice
+      };
+      
+      const ligneHeight = 8;
+      const tableTop = yPosition;
+      
+      // En-tête tableau
+      doc.setFillColor(...headerBlue);
+      doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'F');
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
+      
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.2);
+      doc.line(colPositions.qty, tableTop, colPositions.qty, tableTop + ligneHeight);
+      doc.line(colPositions.unitPrice, tableTop, colPositions.unitPrice, tableTop + ligneHeight);
+      doc.line(colPositions.total - 1, tableTop, colPositions.total - 1, tableTop + ligneHeight);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      
+      const headerTextY = tableTop + 5;
+      doc.text('DESCRIPTION OF GOODS/SERVICES', colPositions.description + (colWidths.description / 2), headerTextY, { align: 'center' });
+      doc.text('QTY', colPositions.qty + (colWidths.qty / 2), headerTextY, { align: 'center' });
+      doc.text('UNIT PRICE (CFA)', colPositions.unitPrice + (colWidths.unitPrice / 2), headerTextY, { align: 'center' });
+      doc.text('TOTAL (CFA)', colPositions.total + (colWidths.total / 2), headerTextY, { align: 'center' });
+      
+      yPosition = tableTop + ligneHeight;
+      
+      const formatNombre = (nombre) => {
+        const num = parseFloat(nombre) || 0;
+        const parts = num.toFixed(2).split('.');
+        const entier = parts[0];
+        const decimal = parts[1] || '00';
+        const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return `${entierFormate}.${decimal}`;
+      };
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      let totalGeneral = 0;
+      let rowCount = 0;
+      
+      if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
+        venteActualisee.lignes_vente.forEach((ligne, index) => {
+          if (yPosition + ligneHeight > 250) {
+            doc.addPage();
+            yPosition = margins.top + 10;
+            rowCount = 0;
+            
+            // EN-TÊTE BLEU SUR LES PAGES SUIVANTES
+            doc.setFillColor(...blueColor);
+            doc.rect(0, 0, pageWidth, 20, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text('PROFORMA INVOICE (CONTINUED)', margins.left, 13);
+            
+            yPosition = 25;
+            
+            doc.setFillColor(...headerBlue);
+            doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
+            doc.setDrawColor(...blueColor);
+            doc.setLineWidth(0.5);
+            doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.text('DESCRIPTION OF GOODS/SERVICES', colPositions.description + (colWidths.description / 2), yPosition + 5, { align: 'center' });
+            doc.text('QTY', colPositions.qty + (colWidths.qty / 2), yPosition + 5, { align: 'center' });
+            doc.text('UNIT PRICE (CFA)', colPositions.unitPrice + (colWidths.unitPrice / 2), yPosition + 5, { align: 'center' });
+            doc.text('TOTAL (RWD)', colPositions.total + (colWidths.total / 2), yPosition + 5, { align: 'center' });
+            
+            doc.setDrawColor(...blueColor);
+            doc.setLineWidth(0.2);
+            doc.line(colPositions.qty, yPosition, colPositions.qty, yPosition + ligneHeight);
+            doc.line(colPositions.unitPrice, yPosition, colPositions.unitPrice, yPosition + ligneHeight);
+            doc.line(colPositions.total - 1, yPosition, colPositions.total - 1, yPosition + ligneHeight);
+            
+            yPosition += ligneHeight;
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+          }
+          
+          const quantite = parseInt(ligne.quantite) || 0;
+          const prixUnitaire = parseFloat(ligne.prix_unitaire) || 0;
+          const montantApresRemise = quantite * prixUnitaire;
+          totalGeneral += montantApresRemise;
+          
+          let nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
+          const entrepot = ligne.entrepot_nom || ligne.entrepot || '';
+          if (entrepot) {
+            nomProduit += ` (${entrepot})`;
+          }
+          
+          const puFormatted = formatNombre(prixUnitaire);
+          const montantFormatted = formatNombre(montantApresRemise);
+          
+          if (rowCount % 2 === 0) {
+            doc.setFillColor(250, 250, 250);
+            doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'F');
+          }
+          
+          doc.setDrawColor(...blueColor);
+          doc.setLineWidth(0.1);
+          doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+          
+          doc.line(colPositions.qty, yPosition, colPositions.qty, yPosition + ligneHeight);
+          doc.line(colPositions.unitPrice, yPosition, colPositions.unitPrice, yPosition + ligneHeight);
+          doc.line(colPositions.total - 1, yPosition, colPositions.total - 1, yPosition + ligneHeight);
+          
+          const cellPaddingY = 5;
+          
+          let designationAffichee = nomProduit;
+          const maxCaracteres = 60;
+          if (designationAffichee.length > maxCaracteres) {
+            designationAffichee = designationAffichee.substring(0, maxCaracteres - 3) + '...';
+          }
+          doc.text(designationAffichee, colPositions.description + 3, yPosition + cellPaddingY);
+          
+          doc.text(quantite.toString(), colPositions.qty + (colWidths.qty / 2), yPosition + cellPaddingY, { align: 'center' });
+          
+          doc.text(`${puFormatted}`, colPositions.unitPrice + colWidths.unitPrice - 3, yPosition + cellPaddingY, { align: 'right' });
+          
+          doc.text(`${montantFormatted}`, colPositions.total + colWidths.total - 3, yPosition + cellPaddingY, { align: 'right' });
+          
+          yPosition += ligneHeight;
+          rowCount++;
+        });
+      } else {
+        doc.setDrawColor(...blueColor);
+        doc.setLineWidth(0.1);
+        doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+        doc.setTextColor(150, 150, 150);
+        doc.text('Aucun produit dans cette vente', margins.left + contentWidth / 2, yPosition + 4, { align: 'center' });
+        yPosition += ligneHeight;
+      }
+      
+      // Ligne totale
+      const totalLineY = yPosition;
+      doc.setFillColor(...lightBlueColor);
+      doc.rect(margins.left, totalLineY, contentWidth, ligneHeight, 'F');
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, totalLineY, contentWidth, ligneHeight, 'S');
+      
+      doc.line(colPositions.qty, totalLineY, colPositions.qty, totalLineY + ligneHeight);
+      doc.line(colPositions.unitPrice, totalLineY, colPositions.unitPrice, totalLineY + ligneHeight);
+      doc.line(colPositions.total - 1, totalLineY, colPositions.total - 1, totalLineY + ligneHeight);
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...blueColor);
+      doc.text('TOTAL', colPositions.description + (colWidths.description / 2), totalLineY + 5, { align: 'center' });
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      
+      // Formatage du total avec séparateur de milliers
+      const totalFormatted = formatNombre(totalGeneral);
+      doc.text(totalFormatted, colPositions.total + colWidths.total - 3, totalLineY + 5, { align: 'right' });
+      
+      yPosition = totalLineY + ligneHeight + 10;
+      
+      // ============================================================
+      // NOTE EN ROUGE SIMPLE ET IMPACTANTE - AVANT AMOUNT IN WORDS
+      // ============================================================
+      
+      // Note en rouge simple, sans rectangle ni fond
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold'); // Police en gras pour plus d'impact
+      doc.setTextColor(255, 0, 0); // Rouge vif
+      
+      // Texte centré pour plus de visibilité
+      const noteText = 'Note: Proforma invoice is valid upto seven days from the date of issue';
+      doc.text(noteText, margins.left + contentWidth/2, yPosition + 5, { align: 'center' });
+      
+      yPosition += 10; // Espace après la note
+      
+      // ============================================================
+      // FONCTION POUR CONVERTIR LE MONTANT EN MOTS ANGLAIS
+      // ============================================================
+      const numberToWords = (num) => {
+        const a = [
+          '', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE',
+          'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN',
+          'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'
+        ];
+        
+        const b = [
+          '', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'
+        ];
+
+        const convertLessThan1000 = (n) => {
+          if (n === 0) return '';
+          
+          let words = '';
+          
+          if (n >= 100) {
+            words += a[Math.floor(n / 100)] + ' HUNDRED ';
+            n %= 100;
+          }
+          
+          if (n > 0) {
+            if (n < 20) {
+              words += a[n] + ' ';
+            } else {
+              words += b[Math.floor(n / 10)] + ' ';
+              if (n % 10 > 0) {
+                words += a[n % 10] + ' ';
+              }
+            }
+          }
+          
+          return words.trim();
+        };
+
+        const convertToWords = (n) => {
+          if (n === 0) return 'ZERO';
+          
+          let words = '';
+          
+          // Millions
+          if (n >= 1000000) {
+            const millions = Math.floor(n / 1000000);
+            words += convertLessThan1000(millions) + ' MILLION ';
+            n %= 1000000;
+          }
+          
+          // Thousands
+          if (n >= 1000) {
+            const thousands = Math.floor(n / 1000);
+            words += convertLessThan1000(thousands) + ' THOUSAND ';
+            n %= 1000;
+          }
+          
+          // Hundreds
+          if (n > 0) {
+            words += convertLessThan1000(n);
+          }
+          
+          return words.trim();
+        };
+
+        // Pour 5,500.00, on prend la partie entière (5500)
+        const integerPart = Math.floor(num);
+        let result = convertToWords(integerPart);
+        
+        // Ajouter "ONLY" à la fin
+        result += ' ONLY';
+        
+        return result;
+      };
+
+      // Calculer le montant en mots
+      const amountInWords = numberToWords(totalGeneral);
+      
+      // AMOUNT IN WORDS - Rectangle individuel
+      const amountRectHeight = 8;
+      doc.setFillColor(...lightBlueColor);
+      doc.rect(margins.left, yPosition, contentWidth, amountRectHeight, 'F');
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, yPosition, contentWidth, amountRectHeight, 'S');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      // Pour 5,500.00, le montant en mots sera "FIVE THOUSAND FIVE HUNDRED ONLY"
+      doc.text(`Amount in Words : - ${amountInWords}`, margins.left + 5, yPosition + 5);
+      
+      yPosition += amountRectHeight + 5;
+      
+      // PAYMENT TERMS - Rectangle individuel
+      const paymentRectHeight = 8;
+      doc.setFillColor(...lightBlueColor);
+      doc.rect(margins.left, yPosition, contentWidth, paymentRectHeight, 'F');
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, yPosition, contentWidth, paymentRectHeight, 'S');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      const paymentTerms = "100% Advance payment before delivery (Net of bank Charges)";
+      doc.text(`Payment Terms : -${paymentTerms}`, margins.left + 5, yPosition + 5);
+      
+      yPosition += paymentRectHeight + 5;
+      
+      // DELIVERY TERMS - Rectangle individuel
+      const deliveryRectHeight = 8;
+      doc.setFillColor(...lightBlueColor);
+      doc.rect(margins.left, yPosition, contentWidth, deliveryRectHeight, 'F');
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, yPosition, contentWidth, deliveryRectHeight, 'S');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      const deliveryTerms = "With 1-2 days after receipt of payment.";
+      doc.text(`Delivery Terms : -${deliveryTerms}`, margins.left + 5, yPosition + 5);
+      
+      yPosition += deliveryRectHeight + 5;
+      
+      // SECTION BANK DETAILS - AVEC RECTANGLE ET LIGNE AU MILIEU
+      const bankDetailsHeight = 25;
+      
+      // Rectangle principal
+      doc.setFillColor(...lightBlueColor);
+      doc.rect(margins.left, yPosition, contentWidth, bankDetailsHeight, 'F');
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.5);
+      doc.rect(margins.left, yPosition, contentWidth, bankDetailsHeight, 'S');
+      
+      // Ligne verticale au milieu
+      const middleX = margins.left + (contentWidth / 2);
+      doc.setDrawColor(...blueColor);
+      doc.setLineWidth(0.2);
+      doc.line(middleX, yPosition, middleX, yPosition + bankDetailsHeight);
+      
+      // Colonne de gauche - Signature
+      const leftColX = margins.left + 5;
+      const leftTextY = yPosition + 7;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      doc.text('For, Kanis Retail Rwanda Limited', leftColX, leftTextY);
+      doc.text('Authorised Signatory & Company Stamp', leftColX, leftTextY + 14);
+      
+      // Colonne de droite - Bank Details
+      const rightColX = middleX + 10;
+      
+      // Titre BANK DETAILS
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...blueColor);
+      doc.text('BANK DETAILS', rightColX, leftTextY);
+      
+      // Détails bancaires
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      doc.text('ACCOUNT NO. :- 00261-06985124-52', rightColX, leftTextY + 5);
+      doc.text('ACCOUNT NAME :- Kanis Retail Rwanda Limited', rightColX, leftTextY + 10);
+      doc.text('BANK NAME :- Bank Of Kigali', rightColX, leftTextY + 15);
+
+      
+      // ============================================================
+      // EN-TÊTE BLEU EN BAS
+      // ============================================================
+      doc.setFillColor(...blueColor);
+      doc.rect(0, pageHeight  -30, pageWidth, 10, 'F');
+      
+      // Message en bas à gauche
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Thank you for your business!', margins.left, pageHeight - 12);
+      
+      
+      
+      const fileName = `Proforma-Invoice-${factureNum}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(fileName);
+      
       setSnackbar({ 
         open: true, 
-        message: 'Impossible de récupérer les données de la vente', 
+        message: 'Facture Proforma PDF générée avec succès', 
+        severity: 'success' 
+      });
+      
+      return true;
+      
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error);
+      setSnackbar({ 
+        open: true, 
+        message: 'Erreur lors de la génération du PDF', 
         severity: 'error' 
       });
       return false;
     }
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const margins = { left: 10, right: 10, top: 15, bottom: 10 };
-    const contentWidth = pageWidth - margins.left - margins.right;
-    
-    let yPosition = margins.top;
-    
-    try {
-      const img = new Image();
-      
-      await new Promise((resolve, reject) => {
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          const logoWidth = 50;
-          const logoHeight = 25;
-          
-          canvas.width = logoWidth * 4;
-          canvas.height = logoHeight * 4;
-          
-          const scale = Math.min(
-            canvas.width / img.width,
-            canvas.height / img.height
-          );
-          const scaledWidth = img.width * scale;
-          const scaledHeight = img.height * scale;
-          const x = (canvas.width - scaledWidth) / 2;
-          const y = (canvas.height - scaledHeight) / 2;
-          
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-          
-          const dataURL = canvas.toDataURL('image/png');
-          
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.5);
-          doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
-          
-          doc.addImage(dataURL, 'PNG', margins.left, yPosition, logoWidth, logoHeight);
-          
-          resolve();
-        };
-        
-        img.onerror = () => {
-          const logoWidth = 50;
-          const logoHeight = 25;
-          
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.5);
-          doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
-          
-          doc.setFontSize(16);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 8, { align: 'center' });
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 14, { align: 'center' });
-          doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 19, { align: 'center' });
-          
-          resolve();
-        };
-        
-        img.src = logo;
-        img.crossOrigin = 'anonymous';
-      });
-      
-    } catch (error) {
-      console.warn('Erreur avec le logo, utilisation du texte:', error);
-      const logoWidth = 50;
-      const logoHeight = 25;
-      
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.5);
-      doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
-      
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 8, { align: 'center' });
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 14, { align: 'center' });
-      doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 19, { align: 'center' });
-    }
-    
-    const infoSocieteY = yPosition + 2;
-    const infoSocieteX = pageWidth - margins.right - 95;
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    const infoBoxWidth = 97;
-    const infoBoxHeight = 40;
-    
-    doc.rect(infoSocieteX, infoSocieteY - 2, infoBoxWidth, infoBoxHeight, 'S');
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX + (infoBoxWidth / 2), infoSocieteY + 4, { align: 'center' });
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(infoSocieteX + 8, infoSocieteY + 6, infoSocieteX + infoBoxWidth - 8, infoSocieteY + 6);
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    let infoY = infoSocieteY + 10;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Nom:', infoSocieteX + 6, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('MSG SARL', infoSocieteX + 18, infoY);
-    infoY += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Adresse:', infoSocieteX + 6, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('LYMANYA', infoSocieteX + 25, infoY);
-    infoY += 5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Tél:', infoSocieteX + 6, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5);
-    doc.text('+225 05 45 75 18 / 05 79 51 75', infoSocieteX + 14, infoY);
-    doc.setFontSize(10);
-    infoY += 7;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Email:', infoSocieteX + 6, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('jallowrimkaz@gmail.com', infoSocieteX + 20, infoY);
-    
-    yPosition = Math.max(infoSocieteY + infoBoxHeight + 5, yPosition + 35);
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
-    yPosition += 8;
-    
-    const sectionTop = yPosition;
-    
-    // SECTION INFOS CLIENT (DROITE)
-    let clientY = sectionTop + 5;
-    const clientRightMargin = pageWidth - margins.right - 60;
-
-    // Titre "CLIENT" avec soulignement
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('CLIENT', clientRightMargin + 7, clientY, { align: 'center' });
-
-    // Soulignement sous "CLIENT"
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    const clientTitleWidth = doc.getTextWidth('CLIENT');
-    doc.line(clientRightMargin + (15 - clientTitleWidth) / 2, clientY + 1, clientRightMargin + (17 - clientTitleWidth) / 2 + clientTitleWidth, clientY + 1);
-
-    clientY += 8;
-
-    // Informations client - TOUT EN NOIR
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Dénomination :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
-    doc.text(clientNom, clientRightMargin + 32, clientY);
-    clientY += 5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Adresse :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
-    doc.text(clientAdresse, clientRightMargin + 32, clientY);
-    clientY += 5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Téléphone :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
-    doc.text(clientTel, clientRightMargin + 32, clientY);
-    clientY += 5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Email :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
-    doc.text(clientEmail, clientRightMargin + 32, clientY);
-    clientY += 5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Mode de paiement :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
-    doc.text(modePaiement, clientRightMargin + 44, clientY);
-    
-    // SECTION INFOS FACTURE (GAUCHE)
-    let factureY = sectionTop + 5;
-    const factureLeftMargin = margins.left + 5;
-
-    // 1. FACTURE VENTE et statut (première position)
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-
-    const statutVente = venteActualisee.statut === 'confirmee' && 
-                       parseFloat(venteActualisee.montant_restant || 0) === 0 
-                       ? 'SOLDÉ' : 'NON SOLDÉ';
-
-    doc.setTextColor(0, 0, 0);
-    const factureText = 'FACTURE VENTE ';
-    doc.text(factureText, factureLeftMargin, factureY);
-
-    const factureTextWidth = doc.getTextWidth(factureText);
-    const statutX = factureLeftMargin + factureTextWidth;
-
-    const statutTextWidth = doc.getTextWidth(statutVente);
-    const padding = 5;
-    const rectWidth = statutTextWidth + (padding * 2);
-    const rectHeight = 6;
-
-    doc.setDrawColor(255, 0, 0);
-    doc.setFillColor(255, 255, 255);
-    doc.setLineWidth(0.5);
-    doc.rect(statutX - -1, factureY - rectHeight + 1, rectWidth, rectHeight, 'FD');
-
-    doc.setTextColor(255, 0, 0);
-    doc.text(statutVente, statutX + padding - 3, factureY - 1);
-    
-    factureY += 8;
-
-    // 2. DATE (deuxième position)
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DATE :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
-    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 20, factureY);
-    factureY += 5;
-
-    // 3. FACTURE N° (troisième position)
-    doc.setFont('helvetica', 'bold');
-    doc.text('FACTURE N° :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const factureNum = venteActualisee.numero_vente || 'N/A';
-    doc.text(factureNum, factureLeftMargin + 30, factureY);
-    factureY += 5;
-
-    // 4. N° Client (quatrième position)
-    doc.setFont('helvetica', 'bold');
-    doc.text('N° Client :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
-    doc.text(clientCode, factureLeftMargin + 30, factureY);
-
-    // Déterminer la position Y la plus basse
-    yPosition = Math.max(factureY + 5, clientY + 10);
-    
-    const colWidths = {
-      code: 35,
-      designation: 55,
-      qte: 10,
-      pu: 28,
-      remise: 23,
-      montant: 40
-    };
-
-    const colPositions = {
-      code: margins.left,
-      designation: margins.left + colWidths.code,
-      qte: margins.left + colWidths.code + colWidths.designation,
-      pu: margins.left + colWidths.code + colWidths.designation + colWidths.qte,
-      remise: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu,
-      montant: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu + colWidths.remise
-    };
-
-    const ligneHeight = 8;
-    const tableTop = yPosition;
-
-    // Tableau des produits - BORDURE EXTERIEURE
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-
-    // Lignes verticales intérieures pour l'en-tête
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
-    doc.line(colPositions.qte, tableTop, colPositions.qte, tableTop + ligneHeight);
-    doc.line(colPositions.pu, tableTop, colPositions.pu, tableTop + ligneHeight);
-    doc.line(colPositions.remise, tableTop, colPositions.remise, tableTop + ligneHeight);
-    doc.line(colPositions.montant - 1, tableTop, colPositions.montant - 1, tableTop + ligneHeight);
-
-    const headerTextY = tableTop + 5;
-    doc.text('CODE', colPositions.code + (colWidths.code / 2), headerTextY, { align: 'center' });
-    doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), headerTextY, { align: 'center' });
-    doc.text('QTE', colPositions.qte + (colWidths.qte / 2), headerTextY, { align: 'center' });
-    doc.text('P.U', colPositions.pu + (colWidths.pu / 2), headerTextY, { align: 'center' });
-    doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), headerTextY, { align: 'center' });
-    doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), headerTextY, { align: 'center' });
-
-    yPosition = tableTop + ligneHeight;
-
-    const formatNombre = (nombre) => {
-      const num = parseFloat(nombre) || 0;
-      const parts = num.toFixed(2).split('.');
-      const entier = parts[0];
-      const decimal = parts[1] || '00';
-      
-      const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-      
-      return `${entierFormate},${decimal}`;
-    };
-
-    const formatPourcentage = (pourcentage) => {
-      const num = parseFloat(pourcentage) || 0;
-      return num.toFixed(1).replace('.', ',') + '';
-    };
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-
-    if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
-      venteActualisee.lignes_vente.forEach((ligne, index) => {
-        if (yPosition + ligneHeight > 270) {
-          doc.addPage();
-          yPosition = margins.top + 15;
-          
-          // Bordure extérieure pour le tableau sur nouvelle page
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.5);
-          doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-          
-          doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'bold');
-          doc.text('CODE', colPositions.code + (colWidths.code / 2), yPosition + 5, { align: 'center' });
-          doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), yPosition + 5, { align: 'center' });
-          doc.text('QTE', colPositions.qte + (colWidths.qte / 2), yPosition + 5, { align: 'center' });
-          doc.text('P.U', colPositions.pu + (colWidths.pu / 2), yPosition + 5, { align: 'center' });
-          doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), yPosition + 5, { align: 'center' });
-          doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 5, { align: 'center' });
-          
-          // Lignes verticales intérieures pour l'en-tête sur nouvelle page
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.2);
-          doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
-          doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
-          doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
-          doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
-          doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
-          
-          yPosition += ligneHeight;
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(0, 0, 0);
-        }
-        
-        const quantite = parseInt(ligne.quantite) || 0;
-        const prixUnitaire = parseFloat(ligne.prix_unitaire) || 0;
-        const remisePourcentage = parseFloat(ligne.remise) || 0;
-        const montantApresRemise = quantite * prixUnitaire * (1 - remisePourcentage / 100);
-        
-        const codeProduit = ligne.produit_code || ligne.produit_id || 
-                           `PROD${(index + 1).toString().padStart(3, '0')}`;
-        
-        let nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
-        const entrepot = ligne.entrepot_nom || ligne.entrepot || '';
-        if (entrepot) {
-          nomProduit += ` (${entrepot})`;
-        }
-        
-        const puFormatted = formatNombre(prixUnitaire);
-        const montantFormatted = formatNombre(montantApresRemise);
-        const remiseFormatted = formatPourcentage(remisePourcentage);
-        
-        // CELLULES DU TABLEAU AVEC BORDURE COMPLÈTE
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.1);
-        
-        // Bordure extérieure de la ligne
-        doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-        
-        // Lignes verticales intérieures
-        doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
-        doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
-        doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
-        doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
-        doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
-        
-        const cellPaddingY = 5;
-        
-        doc.text(codeProduit.toString(), colPositions.code + (colWidths.code / 2), yPosition + cellPaddingY, { align: 'center' });
-        
-        let designationAffichee = nomProduit;
-        const maxCaracteres = 45;
-        if (designationAffichee.length > maxCaracteres) {
-          designationAffichee = designationAffichee.substring(0, maxCaracteres - 3) + '...';
-        }
-        doc.text(designationAffichee, colPositions.designation + 3, yPosition + cellPaddingY);
-        
-        doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
-        
-        doc.text(`${puFormatted} CFA`, colPositions.pu + colWidths.pu - 3, yPosition + cellPaddingY, { align: 'right' });
-        
-        doc.setTextColor(80, 80, 80);
-        doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 3, yPosition + cellPaddingY, { align: 'right' });
-        doc.setTextColor(0, 0, 0);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 5, yPosition + cellPaddingY, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-        
-        yPosition += ligneHeight;
-      });
-    } else {
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.1);
-      doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-      doc.setTextColor(150, 150, 150);
-      doc.text('Aucun produit dans cette vente', margins.left + contentWidth / 2, yPosition + 4, { align: 'center' });
-      yPosition += ligneHeight;
-    }
-
-    // Section des totaux - BORDURE COLLÉE À CELLE DU TABLEAU DES PRODUITS
-    const totalSectionTop = yPosition; // Suppression de l'espace (+5)
-    
-    const formatNumber = (num) => {
-      const number = parseFloat(num) || 0;
-      const parts = number.toFixed(2).split('.');
-      const entier = parts[0];
-      const decimal = parts[1] || '00';
-      
-      const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-      
-      return `${entierFormate},${decimal}`;
-    };
-    
-    const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
-    const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
-    const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
-    const totalTTC = totalHT;
-    
-    const nombreEnLettres = (montant) => {
-      const nombres = {
-        0: 'zéro', 1: 'un', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
-        6: 'six', 7: 'sept', 8: 'huit', 9: 'neuf', 10: 'dix',
-        11: 'onze', 12: 'douze', 13: 'treize', 14: 'quatorze', 15: 'quinze',
-        16: 'seize', 17: 'dix-sept', 18: 'dix-huit', 19: 'dix-neuf',
-        20: 'vingt', 30: 'trente', 40: 'quarante', 50: 'cinquante',
-        60: 'soixante', 70: 'soixante-dix', 80: 'quatre-vingt', 90: 'quatre-vingt-dix',
-        100: 'cent', 1000: 'mille'
-      };
-
-      const entier = Math.floor(montant);
-      
-      if (entier === 11000) return 'Onze Mille';
-      if (entier === 10000) return 'Dix Mille';
-      if (entier === 5000) return 'Cinq Mille';
-      if (entier === 15000) return 'Quinze Mille';
-      if (entier === 20000) return 'Vingt Mille';
-      if (entier === 25000) return 'Vingt-cinq Mille';
-      if (entier === 30000) return 'Trente Mille';
-      if (entier === 50000) return 'Cinquante Mille';
-      if (entier === 100000) return 'Cent Mille';
-      
-      if (entier < 1000) {
-        if (nombres[entier]) return nombres[entier];
-        if (entier < 100) {
-          const dizaine = Math.floor(entier / 10) * 10;
-          const unite = entier % 10;
-          return unite === 0 ? nombres[dizaine] : `${nombres[dizaine]}-${nombres[unite]}`;
-        }
-        return `${entier}`;
-      } else if (entier < 1000000) {
-        const milliers = Math.floor(entier / 1000);
-        const reste = entier % 1000;
-        
-        let texteMilliers = '';
-        if (milliers === 1) {
-          texteMilliers = 'Mille';
-        } else if (milliers < 1000) {
-          if (nombres[milliers]) {
-            texteMilliers = `${nombres[milliers]} Mille`;
-          } else {
-            texteMilliers = `${milliers} Mille`;
-          }
-        }
-        
-        if (reste > 0) {
-          return `${texteMilliers} ${nombreEnLettres(reste)}`;
-        }
-        
-        return texteMilliers;
-      }
-      
-      return `${entier}`;
-    };
-    
-    const totalColX = pageWidth - margins.right - 95;
-    const totalColWidth = 95;
-    
-    doc.setFontSize(11);
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.5);
-    const totalBoxHeight = 42;
-    
-    // BORDURE COLLÉE À CELLE DU TABLEAU DES PRODUITS
-    doc.rect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, 'S');
-    
-    // Lignes horizontales intérieures pour les séparations
-    let currentY = totalSectionTop + 12;
-    for (let i = 0; i < 3; i++) {
-      doc.line(totalColX + 2, currentY, totalColX + totalColWidth - 2, currentY);
-      currentY += 10.5;
-    }
-    
-    yPosition = totalSectionTop + 9;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('TOTAL HT:', totalColX + 8, yPosition);
-    doc.setFontSize(12);
-    doc.text(`${formatNumber(totalHT)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
-    yPosition += 10.5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    
-    const montantTotalLabel = 'MONTANT TOTAL:';
-    const montantTotalValue = `${formatNumber(totalTTC)} CFA`;
-    
-    doc.text(montantTotalLabel, totalColX + 8, yPosition);
-    
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text(montantTotalValue, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
-    
-    yPosition += 10.5;
-    
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text('Montant payé:', totalColX + 8, yPosition);
-    doc.setFontSize(11);
-    doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
-    yPosition += 10.5;
-    
-    doc.setFontSize(11);
-    doc.text('Reste à payer:', totalColX + 8, yPosition);
-    doc.setFontSize(11);
-    doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 8, yPosition, { align: 'right' });
-    
-    // SECTION : "Arrêtée la présente facture..."
-    yPosition = totalSectionTop + totalBoxHeight + 10;
-    
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    
-    const montantEnLettres = nombreEnLettres(totalTTC);
-    const texteComplet = `Arrêtée la présente facture à la somme de : `;
-    const montantTexte = `${montantEnLettres} Franc CFA`;
-    
-    doc.setFont('helvetica', 'normal');
-    const texteCompletWidth = doc.getTextWidth(texteComplet);
-    doc.setFont('helvetica', 'bold');
-    const montantTexteWidth = doc.getTextWidth(montantTexte);
-    const largeurTotale = texteCompletWidth + montantTexteWidth;
-    
-    const startX = (pageWidth - largeurTotale) / 2;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(texteComplet, startX, yPosition);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 0, 0);
-    doc.text(montantTexte, startX + texteCompletWidth, yPosition);
-    
-    // Pied de page
-    const piedPageY = pageHeight - 5;
-    
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.1);
-    doc.line(margins.left, piedPageY - 8, pageWidth - margins.right, piedPageY - 8);
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    
-    const infoSocietePied = `RCCM : ; Adresse : LYMANYA ; Tél : +225 05 45 08 75 1008 05 79 51 7`;
-    doc.text(infoSocietePied, pageWidth / 2, piedPageY - 4, { align: 'center' });
-    
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      
-      doc.setDrawColor(220, 220, 220);
-      doc.setLineWidth(0.1);
-      doc.line(margins.left, piedPageY - 8, pageWidth - margins.right, piedPageY - 8);
-      
-      doc.text(infoSocietePied, pageWidth / 2, piedPageY - 4, { align: 'center' });
-      
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Page ${i} sur ${pageCount}`, pageWidth / 2, piedPageY, { align: 'center' });
-    }
-    
-    const fileName = `Facture-${venteActualisee.numero_vente || venteActualisee.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
-    doc.save(fileName);
-    
-    setSnackbar({ 
-      open: true, 
-      message: 'Facture PDF générée avec succès', 
-      severity: 'success' 
-    });
-    
-    return true;
-    
-  } catch (error) {
-    console.error('Erreur lors de la génération du PDF:', error);
-    setSnackbar({ 
-      open: true, 
-      message: 'Erreur lors de la génération du PDF', 
-      severity: 'error' 
-    });
-    return false;
-  }
-};
+  };
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
@@ -1276,10 +1352,7 @@ const generatePDF = async (vente) => {
         severity: 'success' 
       })
       
-      // Rafraîchir les données de cette vente spécifique
       await refreshVenteDetails(venteId)
-      
-      // Rafraîchir toutes les données
       fetchData()
     } catch (err) {
       console.error('Error confirming vente:', err)
@@ -1314,7 +1387,6 @@ const generatePDF = async (vente) => {
       case 'partiel': return 'warning'
       case 'retard': return 'error'
       case 'non_paye':
-        // Vérifier si la vente est en retard
         if (vente.date_echeance) {
           const echeance = new Date(vente.date_echeance)
           const aujourdhui = new Date()
@@ -1480,7 +1552,28 @@ const generatePDF = async (vente) => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Tooltip title="Actualiser les données">
+          {/* Bouton debug (seulement en développement) */}
+          {process.env.NODE_ENV === 'development' && (
+            <Tooltip title="Debug Stock">
+              <Button
+                variant="outlined"
+                startIcon={<InfoIcon />}
+                onClick={debugStocks}
+                sx={{ 
+                  borderColor: alpha('#9c27b0', 0.5),
+                  color: '#9c27b0',
+                  '&:hover': {
+                    borderColor: '#9c27b0',
+                    backgroundColor: alpha('#9c27b0', 0.04)
+                  }
+                }}
+              >
+                Debug
+              </Button>
+            </Tooltip>
+          )}
+          
+          <Tooltip title="Actualiser">
             <IconButton 
               onClick={fetchData}
               sx={{ 
@@ -1492,7 +1585,7 @@ const generatePDF = async (vente) => {
               <RefreshIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Nouvelle vente">
+          <Tooltip title="Nouvelle Vente">
             <Fab 
               onClick={handleOpenDialog}
               sx={{
@@ -1609,7 +1702,7 @@ const generatePDF = async (vente) => {
               >
                 <MenuItem value="">Tous les statuts</MenuItem>
                 <MenuItem value="non_paye">Non payé</MenuItem>
-                <MenuItem value="partiel">Payé partiellement</MenuItem>
+                <MenuItem value="partiel">Partiel</MenuItem>
                 <MenuItem value="paye">Payé</MenuItem>
                 <MenuItem value="retard">En retard</MenuItem>
               </Select>
@@ -1702,10 +1795,13 @@ const generatePDF = async (vente) => {
                     <Box sx={{ textAlign: 'center' }}>
                       <ReceiptIcon sx={{ fontSize: 64, color: 'text.secondary', opacity: 0.5, mb: 2 }} />
                       <Typography variant="h6" color="textSecondary" gutterBottom>
-                        {searchTerm || filterStatut || filterEntrepot || filterStatutPaiement ? 'Aucune vente trouvée' : 'Aucune vente enregistrée'}
+                        {searchTerm || filterStatut || filterEntrepot || filterStatutPaiement ? 
+                          'Aucune vente trouvée' : 
+                          'Aucune vente enregistrée'}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
-                        {!searchTerm && !filterStatut && !filterEntrepot && !filterStatutPaiement && 'Commencez par créer votre première vente'}
+                        {!searchTerm && !filterStatut && !filterEntrepot && !filterStatutPaiement && 
+                          'Commencez par créer votre première vente'}
                       </Typography>
                     </Box>
                   </TableCell>
@@ -1911,23 +2007,19 @@ const generatePDF = async (vente) => {
                           </>
                         )}
 
-                        {vente.statut === 'confirmee' && (
-                          <>
-                            {vente.statut_paiement !== 'paye' && (
-                              <Tooltip title="Enregistrer paiement">
-                                <IconButton 
-                                  color="success" 
-                                  onClick={() => handleOpenPaiementDialog(vente)}
-                                  sx={{ 
-                                    background: alpha('#4caf50', 0.1),
-                                    '&:hover': { background: alpha('#4caf50', 0.2) }
-                                  }}
-                                >
-                                  <PointOfSaleIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          </>
+                        {vente.statut === 'confirmee' && vente.statut_paiement !== 'paye' && (
+                          <Tooltip title="Enregistrer paiement">
+                            <IconButton 
+                              color="success" 
+                              onClick={() => handleOpenPaiementDialog(vente)}
+                              sx={{ 
+                                background: alpha('#4caf50', 0.1),
+                                '&:hover': { background: alpha('#4caf50', 0.2) }
+                              }}
+                            >
+                              <PointOfSaleIcon />
+                            </IconButton>
+                          </Tooltip>
                         )}
                       </Box>
                     </TableCell>
@@ -2015,7 +2107,7 @@ const generatePDF = async (vente) => {
                               <MenuItem value="">Sélectionner un produit</MenuItem>
                               {produits.map((produit) => (
                                 <MenuItem key={produit.id} value={produit.id}>
-                                  {produit.nom} - {produit.prix_vente} €
+                                  {produit.nom} - Stock: {produit.stock_disponible_total || 0} - {produit.prix_vente} €
                                 </MenuItem>
                               ))}
                             </Select>
@@ -2104,6 +2196,15 @@ const generatePDF = async (vente) => {
                           </Grid>
                         )}
                       </Grid>
+                      
+                      {/* Afficher les informations de stock */}
+                      {ligne.produit && ligne.entrepot && (
+                        <Box sx={{ mt: 1, p: 1, bgcolor: alpha(darkCayn, 0.03), borderRadius: 1 }}>
+                          <Typography variant="caption" color="textSecondary">
+                            Stock: {produits.find(p => p.id == ligne.produit)?.stocks_entrepots?.find(s => s.entrepot == ligne.entrepot)?.quantite_disponible || 0} disponibles
+                          </Typography>
+                        </Box>
+                      )}
                     </Card>
                   ))}
 
@@ -3259,7 +3360,7 @@ const generatePDF = async (vente) => {
           </Typography>
           
           <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
-            Êtes-vous sûr de vouloir supprimer la vente <strong>"{venteToDelete?.numero_vente}"</strong> ? 
+            Êtes-vous sûr de vouloir supprimer la vente <strong style={{ color: '#DA4A0E' }}>"{venteToDelete?.numero_vente}"</strong> ? 
             Cette action est irréversible.
           </Typography>
 
@@ -3313,6 +3414,109 @@ const generatePDF = async (vente) => {
             }}
           >
             Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de debug */}
+      <Dialog
+        open={openDebugDialog}
+        onClose={handleCloseDebugDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 3 }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: `linear-gradient(135deg, #9c27b0 0%, #673ab7 100%)`,
+          color: 'white',
+          fontWeight: 'bold'
+        }}>
+          DEBUG Stock
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, maxHeight: '70vh', overflow: 'auto' }}>
+          <Box sx={{ pt: 2 }}>
+            <Button
+              onClick={() => setExpandedDebug(!expandedDebug)}
+              endIcon={expandedDebug ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ mb: 2 }}
+            >
+              {expandedDebug ? 'Masquer les détails' : 'Afficher les détails'}
+            </Button>
+            
+            <List>
+              {debugInfo.map((item, index) => (
+                <Box key={index} sx={{ mb: 3 }}>
+                  <Card sx={{ mb: 1, p: 2, bgcolor: alpha(darkCayn, 0.05) }}>
+                    <Typography variant="h6" color={darkCayn}>
+                      {item.produit}
+                    </Typography>
+                  </Card>
+                  
+                  <Collapse in={expandedDebug}>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Entrepôt</TableCell>
+                            <TableCell align="right">Total</TableCell>
+                            <TableCell align="right">Réservé</TableCell>
+                            <TableCell align="right">Disponible</TableCell>
+                            <TableCell align="center">Alerte</TableCell>
+                            <TableCell align="center">Statut</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {item.stocks.map((stock, stockIndex) => (
+                            <TableRow key={stockIndex}>
+                              <TableCell>{stock.entrepot}</TableCell>
+                              <TableCell align="right">{stock.total}</TableCell>
+                              <TableCell align="right">{stock.reserve}</TableCell>
+                              <TableCell align="right">
+                                <Typography 
+                                  fontWeight={stock.disponible <= stock.alerte ? 'bold' : 'normal'}
+                                  color={stock.disponible === 0 ? 'error' : stock.disponible <= stock.alerte ? 'warning' : 'success'}
+                                >
+                                  {stock.disponible}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">{stock.alerte}</TableCell>
+                              <TableCell align="center">
+                                {stock.en_rupture ? (
+                                  <Chip label="Rupture" size="small" color="error" />
+                                ) : stock.faible ? (
+                                  <Chip label="Faible" size="small" color="warning" />
+                                ) : (
+                                  <Chip label="OK" size="small" color="success" />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Collapse>
+                </Box>
+              ))}
+            </List>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button 
+            onClick={handleCloseDebugDialog}
+            variant="outlined"
+            sx={{ 
+              borderRadius: 2,
+              borderColor: '#9c27b0',
+              color: '#9c27b0',
+              '&:hover': {
+                borderColor: '#673ab7',
+                backgroundColor: alpha('#673ab7', 0.04)
+              }
+            }}
+          >
+            Fermer
           </Button>
         </DialogActions>
       </Dialog>
