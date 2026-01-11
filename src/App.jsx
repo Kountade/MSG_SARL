@@ -27,6 +27,7 @@ import { Routes, Route , useLocation} from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoutes'
 import PasswordResetRequest from './components/PasswordResetRequest'
 import PasswordReset from './components/PasswordReset'
+import NotFound from './components/NotFound';
 function App() {
   const [mode, setMode] = useState('light')
   const location = useLocation()
@@ -159,6 +160,8 @@ function App() {
                   <Route path="/historique-client" element={<HistoriqueClient/>}/>
                    <Route path="/rapport-paiements" element={<RapportPaiements/>}/>
                     <Route path="/statistiques" element={<Statistiques/>}/>
+                     {/* Ajoutez une route pour les 404 */}
+                     <Route path="*" element={<NotFound />} />
               </Route>
             </Routes> 
           }
