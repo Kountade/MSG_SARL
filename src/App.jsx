@@ -13,6 +13,7 @@ import Produits from './components/Produits'
 import Categories from './components/Categories'
 import MouvementsStock from './components/MouvementsStock'
 import Ventes from './components/Ventes'
+import PointDeVente from './components/PointDeVente'
 import Rapports from './components/Rapports'
 import AuditLog from './components/AuditLog'
 import Utilisateurs from './components/Utilisateurs'
@@ -150,6 +151,7 @@ function App() {
                 <Route path="/categories" element={<Categories/>}/>
                 <Route path="/mouvements-stock" element={<MouvementsStock/>}/>
                 <Route path="/ventes" element={<Ventes/>}/>
+                 <Route path="/point-de-vente" element={<PointDeVente/>}/>
                 <Route path="/rapports" element={<Rapports/>}/>
                 <Route path="/audit" element={<AuditLog/>}/>
                 <Route path="/utilisateurs" element={<Utilisateurs/>}/>
