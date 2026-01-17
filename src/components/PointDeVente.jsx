@@ -283,7 +283,7 @@ const PointDeVente = () => {
     setSnackbar({ open: true, message: 'Panier vidé', severity: 'info' })
   }
 
-  // Calculer le total du panier
+  // Calculer le total du panier (SANS TVA)
   const calculerTotalPanier = () => {
     return panier.reduce((total, item) => {
       return total + (item.quantite * parseFloat(item.prix_unitaire))
@@ -1079,7 +1079,7 @@ const PointDeVente = () => {
               )}
             </Box>
 
-            {/* Total et actions (fixe en bas) */}
+            {/* Total et actions (fixe en bas) - SANS TVA */}
             {panier.length > 0 && (
               <Box sx={{ 
                 p: 3, 
@@ -1087,29 +1087,33 @@ const PointDeVente = () => {
                 flexShrink: 0
               }}>
                 <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body1" color="textSecondary">
-                      Sous-total:
-                    </Typography>
-                    <Typography variant="body1" fontWeight="600" color={darkCayn}>
-                      {formatNumber(calculerTotalPanier())} €
-                    </Typography>
-                  </Box>
+                  {formData.remise > 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body1" color="textSecondary">
+                        Sous-total:
+                      </Typography>
+                      <Typography variant="body1" fontWeight="600" color={darkCayn}>
+                        {formatNumber(calculerTotalPanier())} €
+                      </Typography>
+                    </Box>
+                  )}
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body1" color="textSecondary">
-                      TVA (20%):
-                    </Typography>
-                    <Typography variant="body1" fontWeight="600" color={darkCayn}>
-                      {formatNumber(calculerTotalPanier() * 0.2)} €
-                    </Typography>
-                  </Box>
+                  {formData.remise > 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body1" color="textSecondary">
+                        Remise:
+                      </Typography>
+                      <Typography variant="body1" color={vividOrange} fontWeight="600">
+                        -{formatNumber(parseFloat(formData.remise))} €
+                      </Typography>
+                    </Box>
+                  )}
                   
                   <Divider sx={{ my: 1 }} />
                   
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="h5" color={darkCayn}>
-                      Total:
+                      {formData.remise > 0 ? 'Total après remise:' : 'Total:'}
                     </Typography>
                     <Typography variant="h4" sx={{ 
                       fontWeight: 'bold',
@@ -1118,7 +1122,7 @@ const PointDeVente = () => {
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent'
                     }}>
-                      {formatNumber(calculerTotalPanier() * 1.2)} €
+                      {formatNumber(calculerTotalPanier() - parseFloat(formData.remise || 0))} €
                     </Typography>
                   </Box>
                 </Box>
@@ -1167,7 +1171,7 @@ const PointDeVente = () => {
         </Box>
       </Box>
 
-      {/* Dialog de finalisation de vente */}
+      {/* Dialog de finalisation de vente - SANS TVA */}
       <Dialog 
         open={openDialog} 
         onClose={handleCloseDialog} 
@@ -1387,19 +1391,19 @@ const PointDeVente = () => {
                   
                   <Box sx={{ mb: 3 }}>
                     <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body1" color="textSecondary">
-                          Sous-total:
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6} textAlign="right">
-                        <Typography variant="body1" fontWeight="600">
-                          {formatNumber(calculerTotalPanier())} €
-                        </Typography>
-                      </Grid>
-                      
                       {formData.remise > 0 && (
                         <>
+                          <Grid item xs={6}>
+                            <Typography variant="body1" color="textSecondary">
+                              Sous-total:
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6} textAlign="right">
+                            <Typography variant="body1" fontWeight="600">
+                              {formatNumber(calculerTotalPanier())} €
+                            </Typography>
+                          </Grid>
+                          
                           <Grid item xs={6}>
                             <Typography variant="body1" color="textSecondary">
                               Remise:
@@ -1414,24 +1418,13 @@ const PointDeVente = () => {
                       )}
                       
                       <Grid item xs={6}>
-                        <Typography variant="body1" color="textSecondary">
-                          TVA (20%):
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6} textAlign="right">
-                        <Typography variant="body1" fontWeight="600">
-                          {formatNumber((calculerTotalPanier() - parseFloat(formData.remise || 0)) * 0.2)} €
-                        </Typography>
-                      </Grid>
-                      
-                      <Grid item xs={6}>
                         <Typography variant="h6" color={darkCayn}>
-                          Total TTC:
+                          {formData.remise > 0 ? 'Total après remise:' : 'Total:'}
                         </Typography>
                       </Grid>
                       <Grid item xs={6} textAlign="right">
                         <Typography variant="h5" color={darkCayn} fontWeight="bold">
-                          {formatNumber((calculerTotalPanier() - parseFloat(formData.remise || 0)) * 1.2)} €
+                          {formatNumber(calculerTotalPanier() - parseFloat(formData.remise || 0))} €
                         </Typography>
                       </Grid>
                     </Grid>
