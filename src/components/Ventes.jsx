@@ -44,7 +44,8 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Collapse
+  Collapse,
+  FormHelperText
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -68,7 +69,9 @@ import {
   Error as ErrorIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  Inventory as InventoryIcon
+  Inventory as InventoryIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon
 } from '@mui/icons-material'
 
 import jsPDF from 'jspdf'
@@ -102,6 +105,12 @@ const Ventes = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [debugInfo, setDebugInfo] = useState([])
   const [expandedDebug, setExpandedDebug] = useState(false)
+
+  // Nouveaux états pour la recherche de produits
+  const [produitSearchTerm, setProduitSearchTerm] = useState('')
+  const [filteredProduits, setFilteredProduits] = useState([])
+  const [produitSortBy, setProduitSortBy] = useState('nom')
+  const [produitSortOrder, setProduitSortOrder] = useState('asc')
 
   // Couleurs de l'entreprise
   const darkCayn = '#003C3f'
@@ -163,6 +172,296 @@ const Ventes = () => {
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Initialiser filteredProduits quand produits change
+  useEffect(() => {
+    setFilteredProduits(produits)
+  }, [produits])
+
+  // Fonction pour filtrer et trier les produits
+  const filterProduits = (term) => {
+    if (!term.trim()) {
+      setFilteredProduits(sortProduits(produits, produitSortBy, produitSortOrder))
+      return
+    }
+    
+    const searchTerm = term.toLowerCase().trim()
+    const filtered = produits.filter(produit => 
+      produit.nom.toLowerCase().includes(searchTerm) ||
+      produit.code?.toLowerCase().includes(searchTerm) ||
+      produit.description?.toLowerCase().includes(searchTerm) ||
+      produit.categorie?.toLowerCase().includes(searchTerm)
+    )
+    setFilteredProduits(sortProduits(filtered, produitSortBy, produitSortOrder))
+  }
+
+  // Fonction pour trier les produits
+  const sortProduits = (produitsList, sortBy, order) => {
+    const sorted = [...produitsList]
+    sorted.sort((a, b) => {
+      let aValue, bValue
+      
+      switch(sortBy) {
+        case 'nom':
+          aValue = a.nom?.toLowerCase() || ''
+          bValue = b.nom?.toLowerCase() || ''
+          break
+        case 'prix':
+          aValue = parseFloat(a.prix_vente) || 0
+          bValue = parseFloat(b.prix_vente) || 0
+          break
+        case 'stock':
+          aValue = a.stock_disponible_total || 0
+          bValue = b.stock_disponible_total || 0
+          break
+        case 'categorie':
+          aValue = a.categorie?.toLowerCase() || ''
+          bValue = b.categorie?.toLowerCase() || ''
+          break
+        default:
+          aValue = a.nom?.toLowerCase() || ''
+          bValue = b.nom?.toLowerCase() || ''
+      }
+      
+      if (order === 'asc') {
+        return aValue > bValue ? 1 : -1
+      } else {
+        return aValue < bValue ? 1 : -1
+      }
+    })
+    return sorted
+  }
+
+  // Composant de sélection de produit avec recherche avancée
+  const ProduitSelector = ({ value, onChange, index }) => {
+    const [localSearch, setLocalSearch] = useState('')
+    const [open, setOpen] = useState(false)
+    const [filtered, setFiltered] = useState(produits)
+
+    useEffect(() => {
+      setFiltered(sortProduits(produits, produitSortBy, produitSortOrder))
+    }, [produits, produitSortBy, produitSortOrder])
+
+    const handleSearch = (searchTerm) => {
+      setLocalSearch(searchTerm)
+      if (!searchTerm.trim()) {
+        setFiltered(sortProduits(produits, produitSortBy, produitSortOrder))
+        return
+      }
+      
+      const term = searchTerm.toLowerCase().trim()
+      const results = produits.filter(produit => 
+        produit.nom?.toLowerCase().includes(term) ||
+        produit.code?.toLowerCase().includes(term) ||
+        produit.description?.toLowerCase().includes(term) ||
+        produit.categorie?.toLowerCase().includes(term)
+      )
+      setFiltered(sortProduits(results, produitSortBy, produitSortOrder))
+    }
+
+    const getProduitDetails = (produitId) => {
+      return produits.find(p => p.id == produitId)
+    }
+
+    const selectedProduit = getProduitDetails(value)
+
+    return (
+      <Box>
+        <FormControl fullWidth required>
+          <InputLabel sx={{ color: darkCayn }}>Produit *</InputLabel>
+          <Select
+            open={open}
+            onOpen={() => setOpen(true)}
+            onClose={() => setOpen(false)}
+            value={value}
+            label="Produit *"
+            onChange={(e) => {
+              onChange(e.target.value)
+              setOpen(false)
+              setLocalSearch('')
+            }}
+            renderValue={(selected) => {
+              if (!selected) return <Typography color="textSecondary">Sélectionner un produit</Typography>
+              const produit = getProduitDetails(selected)
+              return (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2">{produit?.nom}</Typography>
+                  {produit && (
+                    <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
+                      {produit.prix_vente} €
+                    </Typography>
+                  )}
+                </Box>
+              )
+            }}
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  maxHeight: 450,
+                  mt: 1
+                }
+              }
+            }}
+            sx={{
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: darkCayn,
+              }
+            }}
+          >
+            {/* En-tête avec recherche et tri */}
+            <Box sx={{ p: 2, borderBottom: `1px solid ${alpha(darkCayn, 0.1)}` }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Rechercher par nom, code, catégorie..."
+                value={localSearch}
+                onChange={(e) => handleSearch(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" sx={{ color: darkCayn }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: localSearch && (
+                    <InputAdornment position="end">
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setLocalSearch('')
+                          setFiltered(sortProduits(produits, produitSortBy, produitSortOrder))
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    '&:hover fieldset': {
+                      borderColor: darkCayn,
+                    },
+                  }
+                }}
+              />
+              
+              {/* Options de tri */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                <Typography variant="caption" color="textSecondary">
+                  Trier par:
+                </Typography>
+                <Select
+                  size="small"
+                  value={produitSortBy}
+                  onChange={(e) => {
+                    e.stopPropagation()
+                    setProduitSortBy(e.target.value)
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  sx={{ fontSize: '0.75rem', height: 24 }}
+                >
+                  <MenuItem value="nom">Nom</MenuItem>
+                  <MenuItem value="prix">Prix</MenuItem>
+                  <MenuItem value="stock">Stock</MenuItem>
+                  <MenuItem value="categorie">Catégorie</MenuItem>
+                </Select>
+                
+                <IconButton 
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setProduitSortOrder(produitSortOrder === 'asc' ? 'desc' : 'asc')
+                  }}
+                  sx={{ width: 24, height: 24 }}
+                >
+                  {produitSortOrder === 'asc' ? 
+                    <ArrowUpwardIcon sx={{ fontSize: 16 }} /> : 
+                    <ArrowDownwardIcon sx={{ fontSize: 16 }} />
+                  }
+                </IconButton>
+              </Box>
+            </Box>
+
+            {filtered.length === 0 ? (
+              <MenuItem disabled sx={{ color: 'text.secondary', fontStyle: 'italic', py: 3 }}>
+                {localSearch ? `Aucun produit trouvé pour "${localSearch}"` : 'Aucun produit disponible'}
+              </MenuItem>
+            ) : (
+              filtered.map((produit) => (
+                <MenuItem 
+                  key={produit.id} 
+                  value={produit.id}
+                  sx={{ 
+                    py: 1.5,
+                    borderBottom: `1px solid ${alpha(darkCayn, 0.05)}`,
+                    '&:last-child': { borderBottom: 0 }
+                  }}
+                >
+                  <Box sx={{ width: '100%' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: darkCayn }}>
+                        {produit.nom}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: vividOrange, fontWeight: 600 }}>
+                        {formatNumber(produit.prix_vente)} €
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                      {produit.code && (
+                        <Typography variant="caption" color="textSecondary">
+                          Code: {produit.code}
+                        </Typography>
+                      )}
+                      {produit.categorie && (
+                        <Chip 
+                          label={produit.categorie} 
+                          size="small" 
+                          sx={{ 
+                            height: 18,
+                            fontSize: '0.65rem',
+                            backgroundColor: alpha(darkCayn, 0.1),
+                            color: darkCayn
+                          }}
+                        />
+                      )}
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Stock: {produit.stock_disponible_total || 0}
+                      </Typography>
+                      {produit.stock_alerte && produit.stock_disponible_total <= produit.stock_alerte && (
+                        <Chip 
+                          label={produit.stock_disponible_total === 0 ? "Rupture" : "Stock faible"} 
+                          size="small" 
+                          color={produit.stock_disponible_total === 0 ? "error" : "warning"}
+                          sx={{ height: 18, fontSize: '0.65rem' }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                </MenuItem>
+              ))
+            )}
+          </Select>
+        </FormControl>
+        
+        {selectedProduit && (
+          <Card variant="outlined" sx={{ mt: 1, p: 1.5, bgcolor: alpha(darkCayn, 0.02), borderRadius: 1 }}>
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+              Sélectionné: <strong style={{ color: darkCayn }}>{selectedProduit.nom}</strong> | 
+              Prix: <strong style={{ color: vividOrange }}>{formatNumber(selectedProduit.prix_vente)} €</strong> | 
+              Stock total: <strong>{selectedProduit.stock_disponible_total || 0}</strong>
+            </Typography>
+          </Card>
+        )}
+      </Box>
+    )
+  }
 
   // Fonction de debug pour vérifier les stocks
   const debugStocks = async () => {
@@ -337,6 +636,8 @@ const Ventes = () => {
       notes: '',
       lignes_vente: [{ produit: '', entrepot: '', quantite: 1, prix_unitaire: '' }]
     })
+    setProduitSearchTerm('')
+    setFilteredProduits(produits)
     setActiveStep(0)
     setOpenDialog(true)
   }
@@ -380,6 +681,8 @@ const Ventes = () => {
       })
       
       setFormData(formData)
+      setProduitSearchTerm('')
+      setFilteredProduits(produits)
       setActiveStep(0)
       setOpenEditDialog(true)
     } catch (error) {
@@ -395,6 +698,8 @@ const Ventes = () => {
     setActiveStep(0)
     setSubmitting(false)
     setEditingVente(null)
+    setProduitSearchTerm('')
+    setFilteredProduits(produits)
   }
 
   // Ouvrir le dialog de détails
@@ -765,750 +1070,713 @@ const Ventes = () => {
   }
 
   // Générer un PDF
- // Générer un PDF
-// Générer un PDF
-const generatePDF = async (vente) => {
-  try {
-    const venteActualisee = await refreshVenteDetails(vente.id) || vente;
-    
-    if (!venteActualisee) {
-      setSnackbar({ 
-        open: true, 
-        message: 'Impossible de récupérer les données de la vente', 
-        severity: 'error' 
-      });
-      return false;
-    }
-
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const pageWidth = 210;
-    const pageHeight = 297;
-    // RÉDUCTION DES MARGES POUR PLUS D'ESPACE
-    const margins = { left: 8, right: 8, top: 8, bottom: 6 };
-    const contentWidth = pageWidth - margins.left - margins.right;
-    
-    let yPosition = margins.top;
-    
-    // RÉDUCTION des dimensions du logo
-    const logoWidth = 40;
-    const logoHeight = 20;
-    
+  const generatePDF = async (vente) => {
     try {
-      const img = new Image();
+      const venteActualisee = await refreshVenteDetails(vente.id) || vente;
       
-      await new Promise((resolve, reject) => {
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          canvas.width = logoWidth * 4;
-          canvas.height = logoHeight * 4;
-          
-          const scale = Math.min(
-            canvas.width / img.width,
-            canvas.height / img.height
-          );
-          const scaledWidth = img.width * scale;
-          const scaledHeight = img.height * scale;
-          const x = (canvas.width - scaledWidth) / 2;
-          const y = (canvas.height - scaledHeight) / 2;
-          
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-          
-          const dataURL = canvas.toDataURL('image/png');
-          
-          // D'abord dessiner le rectangle de bordure (COMPLET)
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.3);
-          doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
-          
-          // Puis ajouter l'image à l'intérieur (avec un petit padding)
-          const padding = 1;
-          doc.addImage(dataURL, 'PNG', margins.left + padding, yPosition + padding, 
-                      logoWidth - (padding * 2), logoHeight - (padding * 2));
-          
-          resolve();
-        };
-        
-        img.onerror = () => {
-          // D'abord dessiner le rectangle de bordure (COMPLET)
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.3);
-          doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
-          
-          // Puis ajouter le texte à l'intérieur (POLICE GARDÉE)
-          doc.setFontSize(16);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 7, { align: 'center' });
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'normal');
-          doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 12, { align: 'center' });
-          doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 17, { align: 'center' });
-          
-          resolve();
-        };
-        
-        img.src = logo;
-        img.crossOrigin = 'anonymous';
+      if (!venteActualisee) {
+        setSnackbar({ 
+          open: true, 
+          message: 'Impossible de récupérer les données de la vente', 
+          severity: 'error' 
+        });
+        return false;
+      }
+
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
       });
       
-    } catch (error) {
-      console.warn('Erreur avec le logo, utilisation du texte:', error);
-      // D'abord dessiner le rectangle de bordure (COMPLET)
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margins = { left: 8, right: 8, top: 8, bottom: 6 };
+      const contentWidth = pageWidth - margins.left - margins.right;
+      
+      let yPosition = margins.top;
+      
+      const logoWidth = 40;
+      const logoHeight = 20;
+      
+      try {
+        const img = new Image();
+        
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = logoWidth * 4;
+            canvas.height = logoHeight * 4;
+            
+            const scale = Math.min(
+              canvas.width / img.width,
+              canvas.height / img.height
+            );
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+            const x = (canvas.width - scaledWidth) / 2;
+            const y = (canvas.height - scaledHeight) / 2;
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+            
+            const dataURL = canvas.toDataURL('image/png');
+            
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
+            
+            const padding = 1;
+            doc.addImage(dataURL, 'PNG', margins.left + padding, yPosition + padding, 
+                        logoWidth - (padding * 2), logoHeight - (padding * 2));
+            
+            resolve();
+          };
+          
+          img.onerror = () => {
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
+            
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(0, 0, 0);
+            doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 7, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 12, { align: 'center' });
+            doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 17, { align: 'center' });
+            
+            resolve();
+          };
+          
+          img.src = logo;
+          img.crossOrigin = 'anonymous';
+        });
+        
+      } catch (error) {
+        console.warn('Erreur avec le logo, utilisation du texte:', error);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 7, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 12, { align: 'center' });
+        doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 17, { align: 'center' });
+      }
+      
+      const infoSocieteY = yPosition;
+      const infoSocieteX = pageWidth - margins.right - 85;
+      
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.3);
-      doc.rect(margins.left, yPosition, logoWidth, logoHeight, 'S');
+      const infoBoxWidth = 85;
+      const infoBoxHeight = 35;
       
-      // Puis ajouter le texte à l'intérieur (POLICE GARDÉE)
-      doc.setFontSize(16);
+      doc.rect(infoSocieteX, infoSocieteY, infoBoxWidth, infoBoxHeight, 'S');
+      
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text('MGS', margins.left + (logoWidth / 2), yPosition + 7, { align: 'center' });
+      doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX + (infoBoxWidth / 2), infoSocieteY + 4, { align: 'center' });
+      
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.line(infoSocieteX + 6, infoSocieteY + 5, infoSocieteX + infoBoxWidth - 6, infoSocieteY + 5);
+      
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('SARL', margins.left + (logoWidth / 2), yPosition + 12, { align: 'center' });
-      doc.text('Stock', margins.left + (logoWidth / 2), yPosition + 17, { align: 'center' });
-    }
-    
-    const infoSocieteY = yPosition;
-    const infoSocieteX = pageWidth - margins.right - 85;
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    const infoBoxWidth = 85;
-    const infoBoxHeight = 35; // RÉDUIT
-    
-    // Dessiner le rectangle "INFORMATION DE LA SOCIÉTÉ" (COMPLET)
-    doc.rect(infoSocieteX, infoSocieteY, infoBoxWidth, infoBoxHeight, 'S');
-    
-    doc.setFontSize(12); // POLICE GARDÉE
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('INFORMATION DE LA SOCIÉTÉ', infoSocieteX + (infoBoxWidth / 2), infoSocieteY + 4, { align: 'center' });
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(infoSocieteX + 6, infoSocieteY + 5, infoSocieteX + infoBoxWidth - 6, infoSocieteY + 5);
-    
-    doc.setFontSize(10); // POLICE GARDÉE
-    doc.setFont('helvetica', 'normal');
-    
-    let infoY = infoSocieteY + 9;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Nom:', infoSocieteX + 5, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('MSG SARL', infoSocieteX + 15, infoY);
-    infoY += 4.5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Adresse:', infoSocieteX + 5, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('LYMANYA', infoSocieteX + 22, infoY);
-    infoY += 4.5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Tél:', infoSocieteX + 5, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9.5); // POLICE GARDÉE
-    doc.text('+225 05 45 75 18 / 05 79 51 75', infoSocieteX + 12, infoY);
-    doc.setFontSize(10); // POLICE GARDÉE
-    infoY += 6;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Email:', infoSocieteX + 5, infoY);
-    doc.setFont('helvetica', 'normal');
-    doc.text('jallowrimkaz@gmail.com', infoSocieteX + 18, infoY);
-    
-    yPosition = Math.max(infoSocieteY + infoBoxHeight + 3, yPosition + 25);
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
-    yPosition += 6;
-    
-    const sectionTop = yPosition;
-    
-    // SECTION INFOS CLIENT (DROITE)
-    let clientY = sectionTop + 4;
-    const clientRightMargin = pageWidth - margins.right - 60;
-
-    // Titre "CLIENT" avec soulignement (POLICE GARDÉE)
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-    doc.text('CLIENT', clientRightMargin + 7, clientY, { align: 'center' });
-
-    // Soulignement sous "CLIENT"
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    const clientTitleWidth = doc.getTextWidth('CLIENT');
-    doc.line(clientRightMargin + (15 - clientTitleWidth) / 2, clientY + 1, clientRightMargin + (17 - clientTitleWidth) / 2 + clientTitleWidth, clientY + 1);
-
-    clientY += 7;
-
-    // Informations client - TOUT EN NOIR (POLICE GARDÉE)
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Dénomination :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
-    doc.text(clientNom, clientRightMargin + 30, clientY);
-    clientY += 4.5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Adresse :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
-    doc.text(clientAdresse, clientRightMargin + 30, clientY);
-    clientY += 4.5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Téléphone :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
-    doc.text(clientTel, clientRightMargin + 30, clientY);
-    clientY += 4.5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Email :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
-    doc.text(clientEmail, clientRightMargin + 30, clientY);
-    clientY += 4.5;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Mode de paiement :', clientRightMargin, clientY);
-    doc.setFont('helvetica', 'normal');
-    const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
-    doc.text(modePaiement, clientRightMargin + 42, clientY);
-    
-    // SECTION INFOS FACTURE (GAUCHE)
-    let factureY = sectionTop + 4;
-    const factureLeftMargin = margins.left + 4;
-
-    // 1. FACTURE VENTE et statut (première position) (POLICE GARDÉE)
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-
-    const statutVente = venteActualisee.statut === 'confirmee' && 
-                       parseFloat(venteActualisee.montant_restant || 0) === 0 
-                       ? 'SOLDÉ' : 'NON SOLDÉ';
-
-    doc.setTextColor(0, 0, 0);
-    const factureText = 'FACTURE VENTE ';
-    doc.text(factureText, factureLeftMargin, factureY);
-
-    const factureTextWidth = doc.getTextWidth(factureText);
-    const statutX = factureLeftMargin + factureTextWidth;
-
-    const statutTextWidth = doc.getTextWidth(statutVente);
-    const padding = 4;
-    const rectWidth = statutTextWidth + (padding * 2);
-    const rectHeight = 5;
-
-    doc.setDrawColor(255, 0, 0);
-    doc.setFillColor(255, 255, 255);
-    doc.setLineWidth(0.3);
-    doc.rect(statutX - -1, factureY - rectHeight + 1, rectWidth, rectHeight, 'FD');
-
-    doc.setTextColor(255, 0, 0);
-    doc.text(statutVente, statutX + padding - 2.5, factureY - 1);
-    
-    factureY += 7;
-
-    // 2. DATE (deuxième position) (POLICE GARDÉE)
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DATE :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
-    doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 18, factureY);
-    factureY += 4.5;
-
-    // 3. FACTURE N° (troisième position) (POLICE GARDÉE)
-    doc.setFont('helvetica', 'bold');
-    doc.text('FACTURE N° :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const factureNum = venteActualisee.numero_vente || 'N/A';
-    doc.text(factureNum, factureLeftMargin + 28, factureY);
-    factureY += 4.5;
-
-    // 4. N° Client (quatrième position) (POLICE GARDÉE)
-    doc.setFont('helvetica', 'bold');
-    doc.text('N° Client :', factureLeftMargin, factureY);
-    doc.setFont('helvetica', 'normal');
-    const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
-    doc.text(clientCode, factureLeftMargin + 28, factureY);
-
-    // Déterminer la position Y la plus basse
-    yPosition = Math.max(factureY + 4, clientY + 8);
-    
-    // RÉDUCTION DES DIMENSIONS DES COLONNES POUR PLUS D'ESPACE
-    const colWidths = {
-      code: 32,
-      designation: 68,
-      qte: 12,
-      pu: 25,
-      remise: 20,
-      montant: 35
-    };
-
-    const colPositions = {
-      code: margins.left,
-      designation: margins.left + colWidths.code,
-      qte: margins.left + colWidths.code + colWidths.designation,
-      pu: margins.left + colWidths.code + colWidths.designation + colWidths.qte,
-      remise: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu,
-      montant: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu + colWidths.remise
-    };
-
-    // RÉDUCTION DE LA HAUTEUR DES LIGNES
-    const ligneHeight = 7;
-    const tableTop = yPosition;
-
-    // Tableau des produits - BORDURE EXTERIEURE (même épaisseur partout)
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
-
-    doc.setFontSize(10); // POLICE GARDÉE
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(0, 0, 0);
-
-    // Lignes verticales intérieures pour l'en-tête (plus fines)
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.2);
-    doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
-    doc.line(colPositions.qte, tableTop, colPositions.qte, tableTop + ligneHeight);
-    doc.line(colPositions.pu, tableTop, colPositions.pu, tableTop + ligneHeight);
-    doc.line(colPositions.remise, tableTop, colPositions.remise, tableTop + ligneHeight);
-    doc.line(colPositions.montant - 1, tableTop, colPositions.montant - 1, tableTop + ligneHeight);
-
-    const headerTextY = tableTop + 4.5;
-    doc.text('CODE', colPositions.code + (colWidths.code / 2), headerTextY, { align: 'center' });
-    doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), headerTextY, { align: 'center' });
-    doc.text('QTE', colPositions.qte + (colWidths.qte / 2), headerTextY, { align: 'center' });
-    doc.text('P.U', colPositions.pu + (colWidths.pu / 2), headerTextY, { align: 'center' });
-    doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), headerTextY, { align: 'center' });
-    doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), headerTextY, { align: 'center' });
-
-    yPosition = tableTop + ligneHeight;
-
-    const formatNombre = (nombre) => {
-      const num = parseFloat(nombre) || 0;
-      const parts = num.toFixed(2).split('.');
-      const entier = parts[0];
-      const decimal = parts[1] || '00';
       
-      const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      let infoY = infoSocieteY + 9;
       
-      return `${entierFormate},${decimal}`;
-    };
+      doc.setFont('helvetica', 'bold');
+      doc.text('Nom:', infoSocieteX + 5, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.text('MSG SARL', infoSocieteX + 15, infoY);
+      infoY += 4.5;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Adresse:', infoSocieteX + 5, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.text('LYMANYA', infoSocieteX + 22, infoY);
+      infoY += 4.5;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Tél:', infoSocieteX + 5, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.text('+225 05 45 75 18 / 05 79 51 75', infoSocieteX + 12, infoY);
+      doc.setFontSize(10);
+      infoY += 6;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('Email:', infoSocieteX + 5, infoY);
+      doc.setFont('helvetica', 'normal');
+      doc.text('jallowrimkaz@gmail.com', infoSocieteX + 18, infoY);
+      
+      yPosition = Math.max(infoSocieteY + infoBoxHeight + 3, yPosition + 25);
+      
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.line(margins.left, yPosition, pageWidth - margins.right, yPosition);
+      yPosition += 6;
+      
+      const sectionTop = yPosition;
+      
+      // SECTION INFOS CLIENT (DROITE)
+      let clientY = sectionTop + 4;
+      const clientRightMargin = pageWidth - margins.right - 60;
 
-    const formatPourcentage = (pourcentage) => {
-      const num = parseFloat(pourcentage) || 0;
-      return num.toFixed(1).replace('.', ',') + '';
-    };
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('CLIENT', clientRightMargin + 7, clientY, { align: 'center' });
 
-    doc.setFontSize(10); // POLICE GARDÉE
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      const clientTitleWidth = doc.getTextWidth('CLIENT');
+      doc.line(clientRightMargin + (15 - clientTitleWidth) / 2, clientY + 1, clientRightMargin + (17 - clientTitleWidth) / 2 + clientTitleWidth, clientY + 1);
 
-    if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
-      venteActualisee.lignes_vente.forEach((ligne, index) => {
-        // AJUSTEMENT DE LA LIMITE DE HAUTEUR POUR PLUS DE LIGNES PAR PAGE
-        if (yPosition + ligneHeight > 285) {
-          doc.addPage();
-          yPosition = margins.top + 8;
+      clientY += 7;
+
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Dénomination :', clientRightMargin, clientY);
+      doc.setFont('helvetica', 'normal');
+      const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
+      doc.text(clientNom, clientRightMargin + 30, clientY);
+      clientY += 4.5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Adresse :', clientRightMargin, clientY);
+      doc.setFont('helvetica', 'normal');
+      const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
+      doc.text(clientAdresse, clientRightMargin + 30, clientY);
+      clientY += 4.5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Téléphone :', clientRightMargin, clientY);
+      doc.setFont('helvetica', 'normal');
+      const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
+      doc.text(clientTel, clientRightMargin + 30, clientY);
+      clientY += 4.5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Email :', clientRightMargin, clientY);
+      doc.setFont('helvetica', 'normal');
+      const clientEmail = venteActualisee.client_email || venteActualisee.client?.email || '';
+      doc.text(clientEmail, clientRightMargin + 30, clientY);
+      clientY += 4.5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Mode de paiement :', clientRightMargin, clientY);
+      doc.setFont('helvetica', 'normal');
+      const modePaiement = venteActualisee.mode_paiement || 'Non spécifié';
+      doc.text(modePaiement, clientRightMargin + 42, clientY);
+      
+      // SECTION INFOS FACTURE (GAUCHE)
+      let factureY = sectionTop + 4;
+      const factureLeftMargin = margins.left + 4;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+
+      const statutVente = venteActualisee.statut === 'confirmee' && 
+                         parseFloat(venteActualisee.montant_restant || 0) === 0 
+                         ? 'SOLDÉ' : 'NON SOLDÉ';
+
+      doc.setTextColor(0, 0, 0);
+      const factureText = 'FACTURE VENTE ';
+      doc.text(factureText, factureLeftMargin, factureY);
+
+      const factureTextWidth = doc.getTextWidth(factureText);
+      const statutX = factureLeftMargin + factureTextWidth;
+
+      const statutTextWidth = doc.getTextWidth(statutVente);
+      const padding = 4;
+      const rectWidth = statutTextWidth + (padding * 2);
+      const rectHeight = 5;
+
+      doc.setDrawColor(255, 0, 0);
+      doc.setFillColor(255, 255, 255);
+      doc.setLineWidth(0.3);
+      doc.rect(statutX - -1, factureY - rectHeight + 1, rectWidth, rectHeight, 'FD');
+
+      doc.setTextColor(255, 0, 0);
+      doc.text(statutVente, statutX + padding - 2.5, factureY - 1);
+      
+      factureY += 7;
+
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DATE :', factureLeftMargin, factureY);
+      doc.setFont('helvetica', 'normal');
+      const dateFacture = venteActualisee.date_facturation || venteActualisee.created_at;
+      doc.text(new Date(dateFacture).toLocaleDateString('fr-FR'), factureLeftMargin + 18, factureY);
+      factureY += 4.5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('FACTURE N° :', factureLeftMargin, factureY);
+      doc.setFont('helvetica', 'normal');
+      const factureNum = venteActualisee.numero_vente || 'N/A';
+      doc.text(factureNum, factureLeftMargin + 28, factureY);
+      factureY += 4.5;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('N° Client :', factureLeftMargin, factureY);
+      doc.setFont('helvetica', 'normal');
+      const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
+      doc.text(clientCode, factureLeftMargin + 28, factureY);
+
+      yPosition = Math.max(factureY + 4, clientY + 8);
+      
+      const colWidths = {
+        code: 32,
+        designation: 68,
+        qte: 12,
+        pu: 25,
+        remise: 20,
+        montant: 35
+      };
+
+      const colPositions = {
+        code: margins.left,
+        designation: margins.left + colWidths.code,
+        qte: margins.left + colWidths.code + colWidths.designation,
+        pu: margins.left + colWidths.code + colWidths.designation + colWidths.qte,
+        remise: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu,
+        montant: margins.left + colWidths.code + colWidths.designation + colWidths.qte + colWidths.pu + colWidths.remise
+      };
+
+      const ligneHeight = 7;
+      const tableTop = yPosition;
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+      doc.rect(margins.left, tableTop, contentWidth, ligneHeight, 'S');
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.line(colPositions.designation, tableTop, colPositions.designation, tableTop + ligneHeight);
+      doc.line(colPositions.qte, tableTop, colPositions.qte, tableTop + ligneHeight);
+      doc.line(colPositions.pu, tableTop, colPositions.pu, tableTop + ligneHeight);
+      doc.line(colPositions.remise, tableTop, colPositions.remise, tableTop + ligneHeight);
+      doc.line(colPositions.montant - 1, tableTop, colPositions.montant - 1, tableTop + ligneHeight);
+
+      const headerTextY = tableTop + 4.5;
+      doc.text('CODE', colPositions.code + (colWidths.code / 2), headerTextY, { align: 'center' });
+      doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), headerTextY, { align: 'center' });
+      doc.text('QTE', colPositions.qte + (colWidths.qte / 2), headerTextY, { align: 'center' });
+      doc.text('P.U', colPositions.pu + (colWidths.pu / 2), headerTextY, { align: 'center' });
+      doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), headerTextY, { align: 'center' });
+      doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), headerTextY, { align: 'center' });
+
+      yPosition = tableTop + ligneHeight;
+
+      const formatNombre = (nombre) => {
+        const num = parseFloat(nombre) || 0;
+        const parts = num.toFixed(2).split('.');
+        const entier = parts[0];
+        const decimal = parts[1] || '00';
+        
+        const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        
+        return `${entierFormate},${decimal}`;
+      };
+
+      const formatPourcentage = (pourcentage) => {
+        const num = parseFloat(pourcentage) || 0;
+        return num.toFixed(1).replace('.', ',') + '';
+      };
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+
+      if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
+        venteActualisee.lignes_vente.forEach((ligne, index) => {
+          if (yPosition + ligneHeight > 285) {
+            doc.addPage();
+            yPosition = margins.top + 8;
+            
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text('CODE', colPositions.code + (colWidths.code / 2), yPosition + 4.5, { align: 'center' });
+            doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), yPosition + 4.5, { align: 'center' });
+            doc.text('QTE', colPositions.qte + (colWidths.qte / 2), yPosition + 4.5, { align: 'center' });
+            doc.text('P.U', colPositions.pu + (colWidths.pu / 2), yPosition + 4.5, { align: 'center' });
+            doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), yPosition + 4.5, { align: 'center' });
+            doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 4.5, { align: 'center' });
+            
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
+            doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
+            doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
+            doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
+            doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
+            
+            yPosition += ligneHeight;
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+          }
           
-          // Bordure extérieure pour le tableau sur nouvelle page (même épaisseur)
+          const quantite = parseInt(ligne.quantite) || 0;
+          const prixUnitaire = parseFloat(ligne.prix_unitaire) || 0;
+          const remisePourcentage = parseFloat(ligne.remise) || 0;
+          const montantApresRemise = quantite * prixUnitaire * (1 - remisePourcentage / 100);
+          
+          const codeProduit = ligne.produit_code || ligne.produit_id || 
+                             `PROD${(index + 1).toString().padStart(3, '0')}`;
+          
+          let nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
+          const entrepot = ligne.entrepot_nom || ligne.entrepot || '';
+          if (entrepot) {
+            nomProduit += ` (${entrepot})`;
+          }
+          
+          const puFormatted = formatNombre(prixUnitaire);
+          const montantFormatted = formatNombre(montantApresRemise);
+          const remiseFormatted = formatPourcentage(remisePourcentage);
+          
           doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.3);
+          doc.setLineWidth(0.1);
+          
           doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
           
-          doc.setTextColor(0, 0, 0);
-          doc.setFont('helvetica', 'bold');
-          doc.text('CODE', colPositions.code + (colWidths.code / 2), yPosition + 4.5, { align: 'center' });
-          doc.text('DÉSIGNATION', colPositions.designation + (colWidths.designation / 2), yPosition + 4.5, { align: 'center' });
-          doc.text('QTE', colPositions.qte + (colWidths.qte / 2), yPosition + 4.5, { align: 'center' });
-          doc.text('P.U', colPositions.pu + (colWidths.pu / 2), yPosition + 4.5, { align: 'center' });
-          doc.text('REMISE', colPositions.remise + (colWidths.remise / 2), yPosition + 4.5, { align: 'center' });
-          doc.text('MONTANT', colPositions.montant + (colWidths.montant / 2), yPosition + 4.5, { align: 'center' });
-          
-          // Lignes verticales intérieures pour l'en-tête sur nouvelle page
-          doc.setDrawColor(0, 0, 0);
-          doc.setLineWidth(0.2);
           doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
           doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
           doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
           doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
           doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
           
-          yPosition += ligneHeight;
-          doc.setFont('helvetica', 'normal');
+          const cellPaddingY = 4.2;
+          
+          doc.text(codeProduit.toString(), colPositions.code + (colWidths.code / 2), yPosition + cellPaddingY, { align: 'center' });
+          
+          let designationAffichee = nomProduit;
+          const maxCaracteres = 55;
+          if (designationAffichee.length > maxCaracteres) {
+            designationAffichee = designationAffichee.substring(0, maxCaracteres - 3) + '...';
+          }
+          doc.text(designationAffichee, colPositions.designation + 2, yPosition + cellPaddingY);
+          
+          doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
+          
+          doc.text(`${puFormatted} CFA`, colPositions.pu + colWidths.pu - 2, yPosition + cellPaddingY, { align: 'right' });
+          
+          doc.setTextColor(80, 80, 80);
+          doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 2, yPosition + cellPaddingY, { align: 'right' });
           doc.setTextColor(0, 0, 0);
-        }
-        
-        const quantite = parseInt(ligne.quantite) || 0;
-        const prixUnitaire = parseFloat(ligne.prix_unitaire) || 0;
-        const remisePourcentage = parseFloat(ligne.remise) || 0;
-        const montantApresRemise = quantite * prixUnitaire * (1 - remisePourcentage / 100);
-        
-        const codeProduit = ligne.produit_code || ligne.produit_id || 
-                           `PROD${(index + 1).toString().padStart(3, '0')}`;
-        
-        let nomProduit = ligne.produit_nom?.trim() || 'Produit sans nom';
-        const entrepot = ligne.entrepot_nom || ligne.entrepot || '';
-        if (entrepot) {
-          nomProduit += ` (${entrepot})`;
-        }
-        
-        const puFormatted = formatNombre(prixUnitaire);
-        const montantFormatted = formatNombre(montantApresRemise);
-        const remiseFormatted = formatPourcentage(remisePourcentage);
-        
-        // CELLULES DU TABLEAU AVEC BORDURE COMPLÈTE (épaisseur uniforme)
+          
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 4, yPosition + cellPaddingY, { align: 'right' });
+          doc.setFont('helvetica', 'normal');
+          
+          yPosition += ligneHeight;
+        });
+      } else {
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.1);
-        
-        // Bordure extérieure de la ligne (même épaisseur que l'en-tête)
         doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-        
-        // Lignes verticales intérieures (très fines)
-        doc.line(colPositions.designation, yPosition, colPositions.designation, yPosition + ligneHeight);
-        doc.line(colPositions.qte, yPosition, colPositions.qte, yPosition + ligneHeight);
-        doc.line(colPositions.pu, yPosition, colPositions.pu, yPosition + ligneHeight);
-        doc.line(colPositions.remise, yPosition, colPositions.remise, yPosition + ligneHeight);
-        doc.line(colPositions.montant - 1, yPosition, colPositions.montant - 1, yPosition + ligneHeight);
-        
-        const cellPaddingY = 4.2;
-        
-        doc.text(codeProduit.toString(), colPositions.code + (colWidths.code / 2), yPosition + cellPaddingY, { align: 'center' });
-        
-        let designationAffichee = nomProduit;
-        const maxCaracteres = 55; // Augmentation du nombre de caractères
-        if (designationAffichee.length > maxCaracteres) {
-          designationAffichee = designationAffichee.substring(0, maxCaracteres - 3) + '...';
-        }
-        doc.text(designationAffichee, colPositions.designation + 2, yPosition + cellPaddingY);
-        
-        doc.text(quantite.toString(), colPositions.qte + (colWidths.qte / 2), yPosition + cellPaddingY, { align: 'center' });
-        
-        doc.text(`${puFormatted} CFA`, colPositions.pu + colWidths.pu - 2, yPosition + cellPaddingY, { align: 'right' });
-        
-        doc.setTextColor(80, 80, 80);
-        doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 2, yPosition + cellPaddingY, { align: 'right' });
-        doc.setTextColor(0, 0, 0);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${montantFormatted} CFA`, colPositions.montant + colWidths.montant - 4, yPosition + cellPaddingY, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-        
+        doc.setTextColor(150, 150, 150);
+        doc.text('Aucun produit dans cette vente', margins.left + contentWidth / 2, yPosition + 4, { align: 'center' });
         yPosition += ligneHeight;
-      });
-    } else {
-      doc.setDrawColor(0, 0, 0);
-      doc.setLineWidth(0.1);
-      doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
-      doc.setTextColor(150, 150, 150);
-      doc.text('Aucun produit dans cette vente', margins.left + contentWidth / 2, yPosition + 4, { align: 'center' });
-      yPosition += ligneHeight;
-    }
+      }
 
-    // Section des totaux - BORDURE COLLÉE À CELLE DU TABLEAU DES PRODUITS
-    const totalSectionTop = yPosition;
-    
-    const formatNumber = (num) => {
-      const number = parseFloat(num) || 0;
-      const parts = number.toFixed(2).split('.');
-      const entier = parts[0];
-      const decimal = parts[1] || '00';
+      // Section des totaux
+      const totalSectionTop = yPosition;
       
-      const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-      
-      return `${entierFormate},${decimal}`;
-    };
-    
-    const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
-    const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
-    const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
-    const totalTTC = totalHT;
-    
-    const nombreEnLettres = (montant) => {
-      const nombres = {
-        0: 'zéro', 1: 'un', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
-        6: 'six', 7: 'sept', 8: 'huit', 9: 'neuf', 10: 'dix',
-        11: 'onze', 12: 'douze', 13: 'treize', 14: 'quatorze', 15: 'quinze',
-        16: 'seize', 17: 'dix-sept', 18: 'dix-huit', 19: 'dix-neuf',
-        20: 'vingt', 30: 'trente', 40: 'quarante', 50: 'cinquante',
-        60: 'soixante', 70: 'soixante-dix', 80: 'quatre-vingt', 90: 'quatre-vingt-dix'
-      };
-
-      const centaines = {
-        100: 'cent', 200: 'deux-cents', 300: 'trois-cents', 400: 'quatre-cents',
-        500: 'cinq-cents', 600: 'six-cents', 700: 'sept-cents', 800: 'huit-cents', 900: 'neuf-cents'
-      };
-
-      const entier = Math.floor(montant);
-      
-      // Cas spéciaux pour les milliers ronds
-      if (entier === 1000) return 'Mille';
-      if (entier === 2000) return 'Deux Mille';
-      if (entier === 3000) return 'Trois Mille';
-      if (entier === 4000) return 'Quatre Mille';
-      if (entier === 5000) return 'Cinq Mille';
-      if (entier === 6000) return 'Six Mille';
-      if (entier === 7000) return 'Sept Mille';
-      if (entier === 8000) return 'Huit Mille';
-      if (entier === 9000) return 'Neuf Mille';
-      
-      if (entier === 10000) return 'Dix Mille';
-      if (entier === 11000) return 'Onze Mille';
-      if (entier === 12000) return 'Douze Mille';
-      if (entier === 13000) return 'Treize Mille';
-      if (entier === 14000) return 'Quatorze Mille';
-      if (entier === 15000) return 'Quinze Mille';
-      if (entier === 16000) return 'Seize Mille';
-      if (entier === 17000) return 'Dix-sept Mille';
-      if (entier === 18000) return 'Dix-huit Mille';
-      if (entier === 19000) return 'Dix-neuf Mille';
-      
-      if (entier === 20000) return 'Vingt Mille';
-      if (entier === 30000) return 'Trente Mille';
-      if (entier === 40000) return 'Quarante Mille';
-      if (entier === 50000) return 'Cinquante Mille';
-      if (entier === 60000) return 'Soixante Mille';
-      if (entier === 70000) return 'Soixante-dix Mille';
-      if (entier === 80000) return 'Quatre-vingt Mille';
-      if (entier === 90000) return 'Quatre-vingt-dix Mille';
-      
-      if (entier === 100000) return 'Cent Mille';
-      if (entier === 125000) return 'Cent Vingt-cinq Mille';
-      if (entier === 150000) return 'Cent Cinquante Mille';
-      if (entier === 200000) return 'Deux Cent Mille';
-      if (entier === 250000) return 'Deux Cent Cinquante Mille';
-      if (entier === 500000) return 'Cinq Cent Mille';
-      if (entier === 1000000) return 'Un Million';
-      
-      // Nombres inférieurs à 100
-      if (entier < 100) {
-        if (nombres[entier]) return nombres[entier];
+      const formatNumber = (num) => {
+        const number = parseFloat(num) || 0;
+        const parts = number.toFixed(2).split('.');
+        const entier = parts[0];
+        const decimal = parts[1] || '00';
         
-        const dizaine = Math.floor(entier / 10) * 10;
-        const unite = entier % 10;
+        const entierFormate = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         
-        if (entier >= 70 && entier <= 79) {
-          // Cas spéciaux pour soixante-dix, soixante-et-onze, etc.
-          const base = 60;
-          const reste = entier - base;
-          if (reste === 10) return 'soixante-dix';
-          if (reste === 11) return 'soixante-et-onze';
-          if (reste <= 19) return `soixante-${nombres[reste]}`;
-        } else if (entier >= 90 && entier <= 99) {
-          // Cas spéciaux pour quatre-vingt-dix, quatre-vingt-onze, etc.
-          const base = 80;
-          const reste = entier - base;
-          if (reste === 10) return 'quatre-vingt-dix';
-          if (reste === 11) return 'quatre-vingt-onze';
-          if (reste <= 19) return `quatre-vingt-${nombres[reste]}`;
-        } else {
-          // Cas normaux
-          if (unite === 0) return nombres[dizaine];
-          if (unite === 1 && dizaine !== 80 && dizaine !== 90) {
-            return `${nombres[dizaine]}-et-${nombres[unite]}`;
+        return `${entierFormate},${decimal}`;
+      };
+      
+      const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
+      const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
+      const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
+      const totalTTC = totalHT;
+      
+      const nombreEnLettres = (montant) => {
+        const nombres = {
+          0: 'zéro', 1: 'un', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
+          6: 'six', 7: 'sept', 8: 'huit', 9: 'neuf', 10: 'dix',
+          11: 'onze', 12: 'douze', 13: 'treize', 14: 'quatorze', 15: 'quinze',
+          16: 'seize', 17: 'dix-sept', 18: 'dix-huit', 19: 'dix-neuf',
+          20: 'vingt', 30: 'trente', 40: 'quarante', 50: 'cinquante',
+          60: 'soixante', 70: 'soixante-dix', 80: 'quatre-vingt', 90: 'quatre-vingt-dix'
+        };
+
+        const centaines = {
+          100: 'cent', 200: 'deux-cents', 300: 'trois-cents', 400: 'quatre-cents',
+          500: 'cinq-cents', 600: 'six-cents', 700: 'sept-cents', 800: 'huit-cents', 900: 'neuf-cents'
+        };
+
+        const entier = Math.floor(montant);
+        
+        if (entier === 1000) return 'Mille';
+        if (entier === 2000) return 'Deux Mille';
+        if (entier === 3000) return 'Trois Mille';
+        if (entier === 4000) return 'Quatre Mille';
+        if (entier === 5000) return 'Cinq Mille';
+        if (entier === 6000) return 'Six Mille';
+        if (entier === 7000) return 'Sept Mille';
+        if (entier === 8000) return 'Huit Mille';
+        if (entier === 9000) return 'Neuf Mille';
+        
+        if (entier === 10000) return 'Dix Mille';
+        if (entier === 11000) return 'Onze Mille';
+        if (entier === 12000) return 'Douze Mille';
+        if (entier === 13000) return 'Treize Mille';
+        if (entier === 14000) return 'Quatorze Mille';
+        if (entier === 15000) return 'Quinze Mille';
+        if (entier === 16000) return 'Seize Mille';
+        if (entier === 17000) return 'Dix-sept Mille';
+        if (entier === 18000) return 'Dix-huit Mille';
+        if (entier === 19000) return 'Dix-neuf Mille';
+        
+        if (entier === 20000) return 'Vingt Mille';
+        if (entier === 30000) return 'Trente Mille';
+        if (entier === 40000) return 'Quarante Mille';
+        if (entier === 50000) return 'Cinquante Mille';
+        if (entier === 60000) return 'Soixante Mille';
+        if (entier === 70000) return 'Soixante-dix Mille';
+        if (entier === 80000) return 'Quatre-vingt Mille';
+        if (entier === 90000) return 'Quatre-vingt-dix Mille';
+        
+        if (entier === 100000) return 'Cent Mille';
+        if (entier === 125000) return 'Cent Vingt-cinq Mille';
+        if (entier === 150000) return 'Cent Cinquante Mille';
+        if (entier === 200000) return 'Deux Cent Mille';
+        if (entier === 250000) return 'Deux Cent Cinquante Mille';
+        if (entier === 500000) return 'Cinq Cent Mille';
+        if (entier === 1000000) return 'Un Million';
+        
+        // Nombres inférieurs à 100
+        if (entier < 100) {
+          if (nombres[entier]) return nombres[entier];
+          
+          const dizaine = Math.floor(entier / 10) * 10;
+          const unite = entier % 10;
+          
+          if (entier >= 70 && entier <= 79) {
+            const base = 60;
+            const reste = entier - base;
+            if (reste === 10) return 'soixante-dix';
+            if (reste === 11) return 'soixante-et-onze';
+            if (reste <= 19) return `soixante-${nombres[reste]}`;
+          } else if (entier >= 90 && entier <= 99) {
+            const base = 80;
+            const reste = entier - base;
+            if (reste === 10) return 'quatre-vingt-dix';
+            if (reste === 11) return 'quatre-vingt-onze';
+            if (reste <= 19) return `quatre-vingt-${nombres[reste]}`;
+          } else {
+            if (unite === 0) return nombres[dizaine];
+            if (unite === 1 && dizaine !== 80 && dizaine !== 90) {
+              return `${nombres[dizaine]}-et-${nombres[unite]}`;
+            }
+            return `${nombres[dizaine]}-${nombres[unite]}`;
           }
-          return `${nombres[dizaine]}-${nombres[unite]}`;
-        }
-      }
-      
-      // Nombres entre 100 et 999
-      if (entier < 1000) {
-        const centaine = Math.floor(entier / 100) * 100;
-        const reste = entier % 100;
-        
-        if (reste === 0) {
-          return centaines[centaine] || `${nombres[centaine / 100]} cents`;
-        } else {
-          const centaineTexte = centaine === 100 ? 'cent' : `${nombres[centaine / 100]} cent`;
-          return `${centaineTexte} ${nombreEnLettres(reste)}`;
-        }
-      }
-      
-      // Nombres entre 1000 et 999999
-      if (entier < 1000000) {
-        const milliers = Math.floor(entier / 1000);
-        const reste = entier % 1000;
-        
-        let texteMilliers = '';
-        if (milliers === 1) {
-          texteMilliers = 'Mille';
-        } else {
-          texteMilliers = `${nombreEnLettres(milliers)} Mille`;
         }
         
-        if (reste > 0) {
-          // Ajouter "et" seulement si le reste est inférieur à 100 et non nul
-          if (reste < 100 && reste > 0) {
+        // Nombres entre 100 et 999
+        if (entier < 1000) {
+          const centaine = Math.floor(entier / 100) * 100;
+          const reste = entier % 100;
+          
+          if (reste === 0) {
+            return centaines[centaine] || `${nombres[centaine / 100]} cents`;
+          } else {
+            const centaineTexte = centaine === 100 ? 'cent' : `${nombres[centaine / 100]} cent`;
+            return `${centaineTexte} ${nombreEnLettres(reste)}`;
+          }
+        }
+        
+        // Nombres entre 1000 et 999999
+        if (entier < 1000000) {
+          const milliers = Math.floor(entier / 1000);
+          const reste = entier % 1000;
+          
+          let texteMilliers = '';
+          if (milliers === 1) {
+            texteMilliers = 'Mille';
+          } else {
+            texteMilliers = `${nombreEnLettres(milliers)} Mille`;
+          }
+          
+          if (reste > 0) {
+            if (reste < 100 && reste > 0) {
+              return `${texteMilliers} ${nombreEnLettres(reste)}`;
+            }
             return `${texteMilliers} ${nombreEnLettres(reste)}`;
           }
-          return `${texteMilliers} ${nombreEnLettres(reste)}`;
+          
+          return texteMilliers;
         }
         
-        return texteMilliers;
+        return `${entier}`;
+      };
+      
+      const totalColX = pageWidth - margins.right - 85;
+      const totalColWidth = 85;
+      
+      doc.setFontSize(11);
+      
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+      const totalBoxHeight = 38;
+      
+      doc.rect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, 'S');
+      
+      let currentY = totalSectionTop + 10;
+      for (let i = 0; i < 3; i++) {
+        doc.setLineWidth(0.1);
+        doc.line(totalColX + 2, currentY, totalColX + totalColWidth - 2, currentY);
+        currentY += 9.5;
       }
       
-      // Pour les nombres plus grands, retourner simplement le nombre
-      return `${entier}`;
-    };
-    
-    const totalColX = pageWidth - margins.right - 85;
-    const totalColWidth = 85;
-    
-    doc.setFontSize(11); // POLICE GARDÉE
-    
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    const totalBoxHeight = 38; // RÉDUIT
-    
-    // BORDURE COLLÉE À CELLE DU TABLEAU DES PRODUITS
-    doc.rect(totalColX, totalSectionTop, totalColWidth, totalBoxHeight, 'S');
-    
-    // Lignes horizontales intérieures pour les séparations (très fines)
-    let currentY = totalSectionTop + 10;
-    for (let i = 0; i < 3; i++) {
-      doc.setLineWidth(0.1);
-      doc.line(totalColX + 2, currentY, totalColX + totalColWidth - 2, currentY);
-      currentY += 9.5;
-    }
-    
-    yPosition = totalSectionTop + 8;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11); // POLICE GARDÉE
-    doc.text('TOTAL HT:', totalColX + 6, yPosition);
-    doc.setFontSize(12); // POLICE GARDÉE
-    doc.text(`${formatNumber(totalHT)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
-    yPosition += 9.5;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12); // POLICE GARDÉE
-    
-    const montantTotalLabel = 'MONTANT TOTAL:';
-    const montantTotalValue = `${formatNumber(totalTTC)} CFA`;
-    
-    doc.text(montantTotalLabel, totalColX + 6, yPosition);
-    
-    doc.setFontSize(14); // POLICE GARDÉE
-    doc.setTextColor(0, 0, 0);
-    doc.text(montantTotalValue, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
-    
-    yPosition += 9.5;
-    
-    doc.setFontSize(11); // POLICE GARDÉE
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text('Montant payé:', totalColX + 6, yPosition);
-    doc.setFontSize(11); // POLICE GARDÉE
-    doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
-    yPosition += 9.5;
-    
-    doc.setFontSize(11); // POLICE GARDÉE
-    doc.text('Reste à payer:', totalColX + 6, yPosition);
-    doc.setFontSize(11); // POLICE GARDÉE
-    doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
-    
-    // SECTION : "Arrêtée la présente facture..."
-    yPosition = totalSectionTop + totalBoxHeight + 8;
-    
-    doc.setFontSize(11); // POLICE GARDÉE
-    doc.setFont('helvetica', 'normal');
-    
-    const montantEnLettres = nombreEnLettres(totalTTC);
-    const texteComplet = `Arrêtée la présente facture à la somme de : `;
-    const montantTexte = `${montantEnLettres} Franc CFA`;
-    
-    doc.setFont('helvetica', 'normal');
-    const texteCompletWidth = doc.getTextWidth(texteComplet);
-    doc.setFont('helvetica', 'bold');
-    const montantTexteWidth = doc.getTextWidth(montantTexte);
-    const largeurTotale = texteCompletWidth + montantTexteWidth;
-    
-    const startX = (pageWidth - largeurTotale) / 2;
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(texteComplet, startX, yPosition);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 0, 0);
-    doc.text(montantTexte, startX + texteCompletWidth, yPosition);
-    
-    // Pied de page
-    const piedPageY = pageHeight - 4;
-    
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.1);
-    doc.line(margins.left, piedPageY - 6, pageWidth - margins.right, piedPageY - 6);
-    
-    doc.setFontSize(8); // POLICE GARDÉE
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    
-    const infoSocietePied = `RCCM : ; Adresse : LYMANYA ; Tél : +225 05 45 08 75 1008 05 79 51 7`;
-    doc.text(infoSocietePied, pageWidth / 2, piedPageY - 3, { align: 'center' });
-    
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
+      yPosition = totalSectionTop + 8;
       
-      doc.setFontSize(8); // POLICE GARDÉE
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('TOTAL HT:', totalColX + 6, yPosition);
+      doc.setFontSize(12);
+      doc.text(`${formatNumber(totalHT)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+      yPosition += 9.5;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      
+      const montantTotalLabel = 'MONTANT TOTAL:';
+      const montantTotalValue = `${formatNumber(totalTTC)} CFA`;
+      
+      doc.text(montantTotalLabel, totalColX + 6, yPosition);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text(montantTotalValue, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+      
+      yPosition += 9.5;
+      
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
+      doc.text('Montant payé:', totalColX + 6, yPosition);
+      doc.setFontSize(11);
+      doc.text(`${formatNumber(montantPaye)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+      yPosition += 9.5;
+      
+      doc.setFontSize(11);
+      doc.text('Reste à payer:', totalColX + 6, yPosition);
+      doc.setFontSize(11);
+      doc.text(`${formatNumber(montantRestant)} CFA`, totalColX + totalColWidth - 6, yPosition, { align: 'right' });
+      
+      // SECTION : "Arrêtée la présente facture..."
+      yPosition = totalSectionTop + totalBoxHeight + 8;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      
+      const montantEnLettres = nombreEnLettres(totalTTC);
+      const texteComplet = `Arrêtée la présente facture à la somme de : `;
+      const montantTexte = `${montantEnLettres} Franc CFA`;
+      
+      doc.setFont('helvetica', 'normal');
+      const texteCompletWidth = doc.getTextWidth(texteComplet);
+      doc.setFont('helvetica', 'bold');
+      const montantTexteWidth = doc.getTextWidth(montantTexte);
+      const largeurTotale = texteCompletWidth + montantTexteWidth;
+      
+      const startX = (pageWidth - largeurTotale) / 2;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.text(texteComplet, startX, yPosition);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 0, 0);
+      doc.text(montantTexte, startX + texteCompletWidth, yPosition);
+      
+      // Pied de page
+      const piedPageY = pageHeight - 4;
       
       doc.setDrawColor(220, 220, 220);
       doc.setLineWidth(0.1);
       doc.line(margins.left, piedPageY - 6, pageWidth - margins.right, piedPageY - 6);
       
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      const infoSocietePied = `RCCM : ; Adresse : LYMANYA ; Tél : +225 05 45 08 75 1008 05 79 51 7`;
       doc.text(infoSocietePied, pageWidth / 2, piedPageY - 3, { align: 'center' });
       
-      doc.setFontSize(8); // POLICE GARDÉE
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Page ${i} sur ${pageCount}`, pageWidth / 2, piedPageY, { align: 'center' });
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.1);
+        doc.line(margins.left, piedPageY - 6, pageWidth - margins.right, piedPageY - 6);
+        
+        doc.text(infoSocietePied, pageWidth / 2, piedPageY - 3, { align: 'center' });
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Page ${i} sur ${pageCount}`, pageWidth / 2, piedPageY, { align: 'center' });
+      }
+      
+      const fileName = `Facture-${venteActualisee.numero_vente || venteActualisee.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(fileName);
+      
+      setSnackbar({ 
+        open: true, 
+        message: 'Facture PDF générée avec succès', 
+        severity: 'success' 
+      });
+      
+      return true;
+      
+    } catch (error) {
+      console.error('Erreur lors de la génération du PDF:', error);
+      setSnackbar({ 
+        open: true, 
+        message: 'Erreur lors de la génération du PDF', 
+        severity: 'error' 
+      });
+      return false;
     }
-    
-    const fileName = `Facture-${venteActualisee.numero_vente || venteActualisee.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
-    doc.save(fileName);
-    
-    setSnackbar({ 
-      open: true, 
-      message: 'Facture PDF générée avec succès', 
-      severity: 'success' 
-    });
-    
-    return true;
-    
-  } catch (error) {
-    console.error('Erreur lors de la génération du PDF:', error);
-    setSnackbar({ 
-      open: true, 
-      message: 'Erreur lors de la génération du PDF', 
-      severity: 'error' 
-    });
-    return false;
-  }
-};
+  };
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
@@ -2259,27 +2527,11 @@ const generatePDF = async (vente) => {
                     }}>
                       <Grid container spacing={2} alignItems="center">
                         <Grid item xs={12} md={4}>
-                          <FormControl fullWidth>
-                            <InputLabel sx={{ color: darkCayn }}>Produit *</InputLabel>
-                            <Select
-                              value={ligne.produit}
-                              label="Produit *"
-                              onChange={(e) => handleLigneChange(index, 'produit', e.target.value)}
-                              required
-                              sx={{
-                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                  borderColor: darkCayn,
-                                }
-                              }}
-                            >
-                              <MenuItem value="">Sélectionner un produit</MenuItem>
-                              {produits.map((produit) => (
-                                <MenuItem key={produit.id} value={produit.id}>
-                                  {produit.nom} - Stock: {produit.stock_disponible_total || 0} - {produit.prix_vente} €
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                          <ProduitSelector
+                            value={ligne.produit}
+                            onChange={(value) => handleLigneChange(index, 'produit', value)}
+                            index={index}
+                          />
                         </Grid>
                         
                         <Grid item xs={12} md={3}>
@@ -2679,27 +2931,11 @@ const generatePDF = async (vente) => {
                     }}>
                       <Grid container spacing={2} alignItems="center">
                         <Grid item xs={12} md={4}>
-                          <FormControl fullWidth>
-                            <InputLabel sx={{ color: darkCayn }}>Produit *</InputLabel>
-                            <Select
-                              value={ligne.produit}
-                              label="Produit *"
-                              onChange={(e) => handleLigneChange(index, 'produit', e.target.value)}
-                              required
-                              sx={{
-                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                  borderColor: darkCayn,
-                                }
-                              }}
-                            >
-                              <MenuItem value="">Sélectionner un produit</MenuItem>
-                              {produits.map((produit) => (
-                                <MenuItem key={produit.id} value={produit.id.toString()}>
-                                  {produit.nom} - {produit.prix_vente} €
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                          <ProduitSelector
+                            value={ligne.produit}
+                            onChange={(value) => handleLigneChange(index, 'produit', value)}
+                            index={index}
+                          />
                         </Grid>
                         
                         <Grid item xs={12} md={3}>
@@ -2719,7 +2955,7 @@ const generatePDF = async (vente) => {
                             >
                               <MenuItem value="">Sélectionner un entrepôt</MenuItem>
                               {getEntrepotsForProduit(ligne.produit).map((entrepot) => (
-                                <MenuItem key={entrepot.id} value={entrepot.id.toString()}>
+                                <MenuItem key={entrepot.id} value={entrepot.id}>
                                   {entrepot.nom}
                                 </MenuItem>
                               ))}
