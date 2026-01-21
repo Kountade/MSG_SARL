@@ -1271,6 +1271,8 @@ const generatePDF = async (vente) => {
     const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
     doc.text(clientTel, clientRightMargin + 30, clientY);
     
+    // MODIFICATION : Suppression des lignes Email et Mode de paiement
+    
     // SECTION INFOS FACTURE (GAUCHE)
     let factureY = sectionTop + 4;
     const factureLeftMargin = margins.left + 4;
@@ -1396,20 +1398,10 @@ const generatePDF = async (vente) => {
 
     if (venteActualisee.lignes_vente && venteActualisee.lignes_vente.length > 0) {
       venteActualisee.lignes_vente.forEach((ligne, index) => {
-        // MODIFICATION : Calculer l'espace nécessaire pour le reste de la page
-        // On calcule la hauteur totale nécessaire pour afficher tout ce qui reste après le tableau
-        const espaceNecessaireFooter = 35; // Espace pour le footer et la marge
-        const hauteurSectionTotaux = 28 + 20; // Boîte totaux + texte "Arrêtée la présente..."
-        const ligneCourante = yPosition;
-        const espaceRestant = pageHeight - ligneCourante - espaceNecessaireFooter - hauteurSectionTotaux;
-        
-        // Si on n'a plus assez d'espace pour ajouter une nouvelle ligne
-        // (on laisse un peu de marge de sécurité)
-        if (espaceRestant < ligneHeight + 5) {
+        if (yPosition + ligneHeight > 285) {
           doc.addPage();
           yPosition = margins.top + 8;
           
-          // Redessiner l'en-tête du tableau sur la nouvelle page
           doc.setDrawColor(0, 0, 0);
           doc.setLineWidth(0.3);
           doc.rect(margins.left, yPosition, contentWidth, ligneHeight, 'S');
