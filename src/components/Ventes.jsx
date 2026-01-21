@@ -2291,11 +2291,11 @@ const generatePDF = async (vente) => {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="h6" fontWeight="bold" color={darkCayn}>
-                        {formatNumber(parseFloat(vente.montant_total || 0))} €
+                        {formatNumber(parseFloat(vente.montant_total || 0))} 
                       </Typography>
                       {vente.remise > 0 && (
                         <Typography variant="caption" color="textSecondary">
-                          dont {formatNumber(parseFloat(vente.remise))} € de remise
+                          dont {formatNumber(parseFloat(vente.remise))}  de remise
                         </Typography>
                       )}
                     </TableCell>
@@ -2344,7 +2344,7 @@ const generatePDF = async (vente) => {
                         )}
                         {vente.montant_restant > 0 && vente.statut_paiement !== 'paye' && (
                           <Typography variant="caption" color="textSecondary">
-                            Reste: {formatNumber(parseFloat(vente.montant_restant))} €
+                            Reste: {formatNumber(parseFloat(vente.montant_restant))} 
                           </Typography>
                         )}
                       </Box>
@@ -2576,7 +2576,7 @@ const generatePDF = async (vente) => {
                           <Typography variant="body2" sx={{ mt: 2, fontWeight: 600, color: darkCayn }}>
                             {ligne.produit && ligne.quantite && ligne.prix_unitaire 
                               ? formatNumber(ligne.quantite * parseFloat(ligne.prix_unitaire))
-                              : '0.00'} €
+                              : '0.00'} 
                           </Typography>
                         </Grid>
                         
@@ -2803,7 +2803,7 @@ const generatePDF = async (vente) => {
                             </Typography>
                           </Box>
                           <Typography variant="body2" fontWeight="600" color={darkCayn}>
-                            {formatNumber(ligne.quantite * parseFloat(ligne.prix_unitaire))} €
+                            {formatNumber(ligne.quantite * parseFloat(ligne.prix_unitaire))} 
                           </Typography>
                         </Box>
                       )
@@ -2812,7 +2812,7 @@ const generatePDF = async (vente) => {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Remise</Typography>
                         <Typography variant="body2" color={vividOrange} fontWeight="600">
-                          -{formatNumber(parseFloat(formData.remise))} €
+                          -{formatNumber(parseFloat(formData.remise))} 
                         </Typography>
                       </Box>
                     )}
@@ -2820,7 +2820,7 @@ const generatePDF = async (vente) => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="h6" color={darkCayn}>Total</Typography>
                       <Typography variant="h6" color={darkCayn} fontWeight="bold">
-                        {formatNumber(calculerTotal())} €
+                        {formatNumber(calculerTotal())} 
                       </Typography>
                     </Box>
                   </Card>
@@ -2980,7 +2980,7 @@ const generatePDF = async (vente) => {
                           <Typography variant="body2" sx={{ mt: 2, fontWeight: 600, color: darkCayn }}>
                             {ligne.produit && ligne.quantite && ligne.prix_unitaire 
                               ? formatNumber(ligne.quantite * parseFloat(ligne.prix_unitaire))
-                              : '0.00'} €
+                              : '0.00'} 
                           </Typography>
                         </Grid>
                         
@@ -3023,7 +3023,7 @@ const generatePDF = async (vente) => {
                     border: `1px solid ${alpha(darkCayn, 0.2)}`
                   }}>
                     <Typography variant="h6" sx={{ fontWeight: 600, color: darkCayn }}>
-                      Total provisoire: {formatNumber(calculerTotal())} €
+                      Total provisoire: {formatNumber(calculerTotal())} 
                     </Typography>
                   </Card>
 
@@ -3422,12 +3422,12 @@ const generatePDF = async (vente) => {
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" color={darkCayn}>
-                              {formatNumber(parseFloat(ligne.prix_unitaire))} €
+                              {formatNumber(parseFloat(ligne.prix_unitaire))} 
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="600" color={darkCayn}>
-                              {ligne.sous_total ? formatNumber(parseFloat(ligne.sous_total)) : formatNumber(ligne.quantite * parseFloat(ligne.prix_unitaire))} €
+                              {ligne.sous_total ? formatNumber(parseFloat(ligne.sous_total)) : formatNumber(ligne.quantite * parseFloat(ligne.prix_unitaire))} 
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -3454,7 +3454,7 @@ const generatePDF = async (vente) => {
                   </Grid>
                   <Grid item xs={6} textAlign="right">
                     <Typography variant="h6" fontWeight="bold" color={darkCayn}>
-                      {formatNumber(parseFloat(selectedVente.montant_total || 0))} €
+                      {formatNumber(parseFloat(selectedVente.montant_total || 0))} 
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -3462,7 +3462,7 @@ const generatePDF = async (vente) => {
                   </Grid>
                   <Grid item xs={6} textAlign="right">
                     <Typography variant="body2" fontWeight="600" color={darkCayn}>
-                      {formatNumber(parseFloat(selectedVente.remise || 0))} €
+                      {formatNumber(parseFloat(selectedVente.remise || 0))} 
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -3470,7 +3470,7 @@ const generatePDF = async (vente) => {
                   </Grid>
                   <Grid item xs={6} textAlign="right">
                     <Typography variant="body2" color={vividOrange} fontWeight="600">
-                      {formatNumber(parseFloat(selectedVente.montant_paye || 0))} €
+                      {formatNumber(parseFloat(selectedVente.montant_paye || 0))} 
                     </Typography>
                   </Grid>
                   <Grid item xs={6}>
@@ -3478,7 +3478,7 @@ const generatePDF = async (vente) => {
                   </Grid>
                   <Grid item xs={6} textAlign="right">
                     <Typography variant="h4" color={selectedVente.montant_restant > 0 ? vividOrange : darkCayn} fontWeight="bold">
-                      {formatNumber(parseFloat(selectedVente.montant_restant || 0))} €
+                      {formatNumber(parseFloat(selectedVente.montant_restant || 0))} 
                     </Typography>
                   </Grid>
                 </Grid>
