@@ -1071,7 +1071,6 @@ const Ventes = () => {
 
   // Générer un PDF
 
-
   const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
@@ -1490,7 +1489,7 @@ const Ventes = () => {
       yPosition += ligneHeight;
     }
 
-    // Fonction corrigée nombreEnLettres
+    // Fonction COMPLÈTEMENT CORRIGÉE nombreEnLettres
     const nombreEnLettres = (montant) => {
       // Extraction de la partie entière et décimale
       const entier = Math.floor(montant);
@@ -1508,123 +1507,116 @@ const Ventes = () => {
         'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'
       ];
 
-      const convertirTroisChiffres = (nombre) => {
+      // Fonction récursive pour convertir n'importe quel nombre
+      const convertirNombre = (nombre) => {
         if (nombre === 0) return '';
         
-        let resultat = '';
-        const centaines = Math.floor(nombre / 100);
-        const reste = nombre % 100;
+        // Moins de 20
+        if (nombre < 20) {
+          return unites[nombre];
+        }
         
-        // Gestion des centaines
-        if (centaines > 0) {
+        // Entre 20 et 99
+        if (nombre < 100) {
+          const dizaine = Math.floor(nombre / 10);
+          const unite = nombre % 10;
+          
+          // Cas spéciaux : soixante-dix, quatre-vingt-dix
+          if (dizaine === 7 || dizaine === 9) {
+            const base = dizaine === 7 ? 60 : 80;
+            const reste = nombre - base;
+            
+            let resultat = dizaines[dizaine];
+            if (reste === 10) {
+              resultat += '-dix';
+            } else if (reste === 11) {
+              resultat += '-onze';
+            } else if (reste > 0) {
+              resultat += '-' + unites[reste];
+            } else if (dizaine === 8) {
+              resultat += 's'; // quatre-vingts
+            }
+            return resultat;
+          }
+          
+          // Cas normaux
+          let resultat = dizaines[dizaine];
+          if (unite === 1 && dizaine !== 8 && dizaine !== 9) {
+            resultat += '-et-un';
+          } else if (unite > 0) {
+            resultat += '-' + unites[unite];
+          } else if (dizaine === 8) {
+            resultat += 's'; // quatre-vingts
+          }
+          return resultat;
+        }
+        
+        // Entre 100 et 999
+        if (nombre < 1000) {
+          const centaines = Math.floor(nombre / 100);
+          const reste = nombre % 100;
+          
+          let resultat = '';
           if (centaines === 1) {
             resultat = 'cent';
           } else {
             resultat = unites[centaines] + ' cent';
           }
           
-          // Ajout du "s" pour les centaines au pluriel (sauf cent un, cent deux, etc.)
           if (reste === 0 && centaines > 1) {
             resultat += 's';
+          } else if (reste > 0) {
+            resultat += ' ' + convertirNombre(reste);
           }
+          return resultat;
         }
         
-        // Gestion des dizaines et unités
-        if (reste > 0) {
-          if (centaines > 0) {
-            resultat += ' ';
-          }
+        // Entre 1000 et 999999
+        if (nombre < 1000000) {
+          const milliers = Math.floor(nombre / 1000);
+          const reste = nombre % 1000;
           
-          if (reste < 20) {
-            // Cas spéciaux pour 71, 91, etc.
-            if (reste === 11 && nombre >= 70 && nombre < 80) {
-              resultat += 'et onze';
-            } else if (reste === 1 && (nombre % 100) === 1 && (nombre < 70 || nombre >= 80)) {
-              resultat += 'un';
-            } else {
-              resultat += unites[reste];
-            }
-          } else {
-            const dizaine = Math.floor(reste / 10);
-            const unite = reste % 10;
-            
-            if (dizaine === 7 || dizaine === 9) {
-              // Soixante-dix à soixante-dix-neuf ou quatre-vingt-dix à quatre-vingt-dix-neuf
-              const base = dizaine === 7 ? 60 : 80;
-              const supplement = reste - base;
-              
-              resultat += dizaines[dizaine];
-              if (supplement === 10) {
-                resultat += '-dix';
-              } else if (supplement === 11) {
-                resultat += '-onze';
-              } else if (supplement > 0) {
-                resultat += '-' + unites[supplement];
-              }
-            } else {
-              resultat += dizaines[dizaine];
-              if (unite === 1 && dizaine !== 8 && dizaine !== 9) {
-                resultat += '-et-un';
-              } else if (unite > 0) {
-                resultat += '-' + unites[unite];
-              } else if (dizaine === 8) {
-                resultat += 's'; // "quatre-vingts" pour 80
-              }
-            }
-          }
-        }
-        
-        return resultat;
-      };
-
-      const convertirMilliers = (nombre) => {
-        if (nombre === 0) return '';
-        
-        let resultat = '';
-        const milliers = Math.floor(nombre / 1000);
-        const reste = nombre % 1000;
-        
-        if (milliers > 0) {
+          let resultat = '';
           if (milliers === 1) {
             resultat = 'mille';
           } else {
-            resultat = convertirTroisChiffres(milliers) + ' mille';
+            resultat = convertirNombre(milliers) + ' mille';
           }
+          
+          if (reste > 0) {
+            if (reste < 100 && reste !== 0) {
+              resultat += ' ' + convertirNombre(reste);
+            } else {
+              resultat += ' ' + convertirNombre(reste);
+            }
+          }
+          return resultat;
         }
         
-        if (reste > 0) {
-          if (milliers > 0) {
-            resultat += ' ';
-          }
-          resultat += convertirTroisChiffres(reste);
-        }
-        
-        return resultat;
-      };
-
-      const convertirMillions = (nombre) => {
-        if (nombre === 0) return '';
-        
-        let resultat = '';
-        const millions = Math.floor(nombre / 1000000);
-        const reste = nombre % 1000000;
-        
-        if (millions > 0) {
+        // Entre 1,000,000 et 999,999,999
+        if (nombre < 1000000000) {
+          const millions = Math.floor(nombre / 1000000);
+          const reste = nombre % 1000000;
+          
+          let resultat = '';
           if (millions === 1) {
             resultat = 'un million';
           } else {
-            resultat = convertirTroisChiffres(millions) + ' millions';
+            resultat = convertirNombre(millions) + ' millions';
           }
+          
+          if (reste > 0) {
+            if (reste < 100) {
+              resultat += ' ' + convertirNombre(reste);
+            } else {
+              resultat += ' ' + convertirNombre(reste);
+            }
+          }
+          return resultat;
         }
         
-        if (reste > 0) {
-          if (millions > 0) {
-            resultat += ' ';
-          }
-          resultat += convertirMilliers(reste);
-        }
-        
-        return resultat;
+        // Si le nombre est trop grand
+        return 'montant trop élevé';
       };
 
       // Conversion de la partie entière
@@ -1632,14 +1624,8 @@ const Ventes = () => {
       
       if (entier === 0) {
         resultatEntier = 'zéro';
-      } else if (entier < 1000) {
-        resultatEntier = convertirTroisChiffres(entier);
-      } else if (entier < 1000000) {
-        resultatEntier = convertirMilliers(entier);
-      } else if (entier < 1000000000) {
-        resultatEntier = convertirMillions(entier);
       } else {
-        return "Montant trop élevé pour la conversion";
+        resultatEntier = convertirNombre(entier);
       }
       
       // Capitalisation de la première lettre
@@ -1647,15 +1633,16 @@ const Ventes = () => {
         resultatEntier = resultatEntier.charAt(0).toUpperCase() + resultatEntier.slice(1);
       }
       
-      // Ajout de la devise et des décimales
+      // Ajout de la devise
       let resultatFinal = resultatEntier + ' franc';
       
       if (entier > 1) {
         resultatFinal += 's';
       }
       
+      // Ajout des centimes si nécessaire
       if (decimal > 0) {
-        const centimesTexte = convertirTroisChiffres(decimal);
+        const centimesTexte = convertirNombre(decimal);
         if (centimesTexte) {
           resultatFinal += ' ' + centimesTexte + ' centime';
           if (decimal > 1) {
@@ -1809,6 +1796,8 @@ const Ventes = () => {
     return false;
   }
 };
+
+  
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
