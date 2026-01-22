@@ -1070,8 +1070,9 @@ const Ventes = () => {
   }
 
   // Générer un PDF
- // Générer un PDF
-const generatePDF = async (vente) => {
+
+
+  const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
     
@@ -1270,8 +1271,6 @@ const generatePDF = async (vente) => {
     doc.setFont('helvetica', 'normal');
     const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
     doc.text(clientTel, clientRightMargin + 30, clientY);
-    
-    // MODIFICATION : Suppression des lignes Email et Mode de paiement
     
     // SECTION INFOS FACTURE (GAUCHE)
     let factureY = sectionTop + 4;
@@ -1491,6 +1490,183 @@ const generatePDF = async (vente) => {
       yPosition += ligneHeight;
     }
 
+    // Fonction corrigée nombreEnLettres
+    const nombreEnLettres = (montant) => {
+      // Extraction de la partie entière et décimale
+      const entier = Math.floor(montant);
+      const decimal = Math.round((montant - entier) * 100);
+      
+      // Tableaux de conversion
+      const unites = [
+        '', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf',
+        'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 
+        'seize', 'dix-sept', 'dix-huit', 'dix-neuf'
+      ];
+      
+      const dizaines = [
+        '', '', 'vingt', 'trente', 'quarante', 'cinquante',
+        'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'
+      ];
+
+      const convertirTroisChiffres = (nombre) => {
+        if (nombre === 0) return '';
+        
+        let resultat = '';
+        const centaines = Math.floor(nombre / 100);
+        const reste = nombre % 100;
+        
+        // Gestion des centaines
+        if (centaines > 0) {
+          if (centaines === 1) {
+            resultat = 'cent';
+          } else {
+            resultat = unites[centaines] + ' cent';
+          }
+          
+          // Ajout du "s" pour les centaines au pluriel (sauf cent un, cent deux, etc.)
+          if (reste === 0 && centaines > 1) {
+            resultat += 's';
+          }
+        }
+        
+        // Gestion des dizaines et unités
+        if (reste > 0) {
+          if (centaines > 0) {
+            resultat += ' ';
+          }
+          
+          if (reste < 20) {
+            // Cas spéciaux pour 71, 91, etc.
+            if (reste === 11 && nombre >= 70 && nombre < 80) {
+              resultat += 'et onze';
+            } else if (reste === 1 && (nombre % 100) === 1 && (nombre < 70 || nombre >= 80)) {
+              resultat += 'un';
+            } else {
+              resultat += unites[reste];
+            }
+          } else {
+            const dizaine = Math.floor(reste / 10);
+            const unite = reste % 10;
+            
+            if (dizaine === 7 || dizaine === 9) {
+              // Soixante-dix à soixante-dix-neuf ou quatre-vingt-dix à quatre-vingt-dix-neuf
+              const base = dizaine === 7 ? 60 : 80;
+              const supplement = reste - base;
+              
+              resultat += dizaines[dizaine];
+              if (supplement === 10) {
+                resultat += '-dix';
+              } else if (supplement === 11) {
+                resultat += '-onze';
+              } else if (supplement > 0) {
+                resultat += '-' + unites[supplement];
+              }
+            } else {
+              resultat += dizaines[dizaine];
+              if (unite === 1 && dizaine !== 8 && dizaine !== 9) {
+                resultat += '-et-un';
+              } else if (unite > 0) {
+                resultat += '-' + unites[unite];
+              } else if (dizaine === 8) {
+                resultat += 's'; // "quatre-vingts" pour 80
+              }
+            }
+          }
+        }
+        
+        return resultat;
+      };
+
+      const convertirMilliers = (nombre) => {
+        if (nombre === 0) return '';
+        
+        let resultat = '';
+        const milliers = Math.floor(nombre / 1000);
+        const reste = nombre % 1000;
+        
+        if (milliers > 0) {
+          if (milliers === 1) {
+            resultat = 'mille';
+          } else {
+            resultat = convertirTroisChiffres(milliers) + ' mille';
+          }
+        }
+        
+        if (reste > 0) {
+          if (milliers > 0) {
+            resultat += ' ';
+          }
+          resultat += convertirTroisChiffres(reste);
+        }
+        
+        return resultat;
+      };
+
+      const convertirMillions = (nombre) => {
+        if (nombre === 0) return '';
+        
+        let resultat = '';
+        const millions = Math.floor(nombre / 1000000);
+        const reste = nombre % 1000000;
+        
+        if (millions > 0) {
+          if (millions === 1) {
+            resultat = 'un million';
+          } else {
+            resultat = convertirTroisChiffres(millions) + ' millions';
+          }
+        }
+        
+        if (reste > 0) {
+          if (millions > 0) {
+            resultat += ' ';
+          }
+          resultat += convertirMilliers(reste);
+        }
+        
+        return resultat;
+      };
+
+      // Conversion de la partie entière
+      let resultatEntier = '';
+      
+      if (entier === 0) {
+        resultatEntier = 'zéro';
+      } else if (entier < 1000) {
+        resultatEntier = convertirTroisChiffres(entier);
+      } else if (entier < 1000000) {
+        resultatEntier = convertirMilliers(entier);
+      } else if (entier < 1000000000) {
+        resultatEntier = convertirMillions(entier);
+      } else {
+        return "Montant trop élevé pour la conversion";
+      }
+      
+      // Capitalisation de la première lettre
+      if (resultatEntier.length > 0) {
+        resultatEntier = resultatEntier.charAt(0).toUpperCase() + resultatEntier.slice(1);
+      }
+      
+      // Ajout de la devise et des décimales
+      let resultatFinal = resultatEntier + ' franc';
+      
+      if (entier > 1) {
+        resultatFinal += 's';
+      }
+      
+      if (decimal > 0) {
+        const centimesTexte = convertirTroisChiffres(decimal);
+        if (centimesTexte) {
+          resultatFinal += ' ' + centimesTexte + ' centime';
+          if (decimal > 1) {
+            resultatFinal += 's';
+          }
+        }
+      }
+      
+      return resultatFinal;
+    };
+
     // Section des totaux
     const totalSectionTop = yPosition;
     
@@ -1508,127 +1684,6 @@ const generatePDF = async (vente) => {
     const totalHT = parseFloat(venteActualisee.montant_total || 0) - parseFloat(venteActualisee.remise || 0);
     const montantPaye = parseFloat(venteActualisee.montant_paye || 0);
     const montantRestant = parseFloat(venteActualisee.montant_restant || 0);
-    
-    const nombreEnLettres = (montant) => {
-      const nombres = {
-        0: 'zéro', 1: 'un', 2: 'deux', 3: 'trois', 4: 'quatre', 5: 'cinq',
-        6: 'six', 7: 'sept', 8: 'huit', 9: 'neuf', 10: 'dix',
-        11: 'onze', 12: 'douze', 13: 'treize', 14: 'quatorze', 15: 'quinze',
-        16: 'seize', 17: 'dix-sept', 18: 'dix-huit', 19: 'dix-neuf',
-        20: 'vingt', 30: 'trente', 40: 'quarante', 50: 'cinquante',
-        60: 'soixante', 70: 'soixante-dix', 80: 'quatre-vingt', 90: 'quatre-vingt-dix'
-      };
-
-      const centaines = {
-        100: 'cent', 200: 'deux-cents', 300: 'trois-cents', 400: 'quatre-cents',
-        500: 'cinq-cents', 600: 'six-cents', 700: 'sept-cents', 800: 'huit-cents', 900: 'neuf-cents'
-      };
-
-      const entier = Math.floor(montant);
-      
-      if (entier === 1000) return 'Mille';
-      if (entier === 2000) return 'Deux Mille';
-      if (entier === 3000) return 'Trois Mille';
-      if (entier === 4000) return 'Quatre Mille';
-      if (entier === 5000) return 'Cinq Mille';
-      if (entier === 6000) return 'Six Mille';
-      if (entier === 7000) return 'Sept Mille';
-      if (entier === 8000) return 'Huit Mille';
-      if (entier === 9000) return 'Neuf Mille';
-      
-      if (entier === 10000) return 'Dix Mille';
-      if (entier === 11000) return 'Onze Mille';
-      if (entier === 12000) return 'Douze Mille';
-      if (entier === 13000) return 'Treize Mille';
-      if (entier === 14000) return 'Quatorze Mille';
-      if (entier === 15000) return 'Quinze Mille';
-      if (entier === 16000) return 'Seize Mille';
-      if (entier === 17000) return 'Dix-sept Mille';
-      if (entier === 18000) return 'Dix-huit Mille';
-      if (entier === 19000) return 'Dix-neuf Mille';
-      
-      if (entier === 20000) return 'Vingt Mille';
-      if (entier === 30000) return 'Trente Mille';
-      if (entier === 40000) return 'Quarante Mille';
-      if (entier === 50000) return 'Cinquante Mille';
-      if (entier === 60000) return 'Soixante Mille';
-      if (entier === 70000) return 'Soixante-dix Mille';
-      if (entier === 80000) return 'Quatre-vingt Mille';
-      if (entier === 90000) return 'Quatre-vingt-dix Mille';
-      
-      if (entier === 100000) return 'Cent Mille';
-      if (entier === 125000) return 'Cent Vingt-cinq Mille';
-      if (entier === 150000) return 'Cent Cinquante Mille';
-      if (entier === 200000) return 'Deux Cent Mille';
-      if (entier === 250000) return 'Deux Cent Cinquante Mille';
-      if (entier === 500000) return 'Cinq Cent Mille';
-      if (entier === 1000000) return 'Un Million';
-      
-      // Nombres inférieurs à 100
-      if (entier < 100) {
-        if (nombres[entier]) return nombres[entier];
-        
-        const dizaine = Math.floor(entier / 10) * 10;
-        const unite = entier % 10;
-        
-        if (entier >= 70 && entier <= 79) {
-          const base = 60;
-          const reste = entier - base;
-          if (reste === 10) return 'soixante-dix';
-          if (reste === 11) return 'soixante-et-onze';
-          if (reste <= 19) return `soixante-${nombres[reste]}`;
-        } else if (entier >= 90 && entier <= 99) {
-          const base = 80;
-          const reste = entier - base;
-          if (reste === 10) return 'quatre-vingt-dix';
-          if (reste === 11) return 'quatre-vingt-onze';
-          if (reste <= 19) return `quatre-vingt-${nombres[reste]}`;
-        } else {
-          if (unite === 0) return nombres[dizaine];
-          if (unite === 1 && dizaine !== 80 && dizaine !== 90) {
-            return `${nombres[dizaine]}-et-${nombres[unite]}`;
-          }
-          return `${nombres[dizaine]}-${nombres[unite]}`;
-        }
-      }
-      
-      // Nombres entre 100 et 999
-      if (entier < 1000) {
-        const centaine = Math.floor(entier / 100) * 100;
-        const reste = entier % 100;
-        
-        if (reste === 0) {
-          return centaines[centaine] || `${nombres[centaine / 100]} cents`;
-        } else {
-          const centaineTexte = centaine === 100 ? 'cent' : `${nombres[centaine / 100]} cent`;
-          return `${centaineTexte} ${nombreEnLettres(reste)}`;
-        }
-      }
-      
-      // Nombres entre 1000 et 999999
-      if (entier < 1000000) {
-        const milliers = Math.floor(entier / 1000);
-        const reste = entier % 1000;
-        
-        let texteMilliers = '';
-        if (milliers === 1) {
-          texteMilliers = 'Mille';
-        } else {
-          texteMilliers = `${nombreEnLettres(milliers)} Mille`;
-        }
-        
-        if (reste > 0) {
-          if (reste < 100 && reste > 0) {
-            return `${texteMilliers} ${nombreEnLettres(reste)}`;
-          }
-          return `${texteMilliers} ${nombreEnLettres(reste)}`;
-        }
-        
-        return texteMilliers;
-      }
-      
-      return `${entier}`;
-    };
     
     const totalColX = pageWidth - margins.right - 85;
     const totalColWidth = 85;
@@ -1671,7 +1726,7 @@ const generatePDF = async (vente) => {
     doc.setFontSize(11);
     doc.text(formatNumber(montantRestant), totalColX + totalColWidth - 6, yPosition, { align: 'right' });
     
-    // SECTION : "Arrêtée la présente facture..."
+    // SECTION : "Arrêtée la présente facture..." AVEC LE TEXTE EN ROUGE
     yPosition = totalSectionTop + totalBoxHeight + 8;
     
     doc.setFontSize(11);
@@ -1682,7 +1737,9 @@ const generatePDF = async (vente) => {
     const montantTexte = `${montantEnLettres}`;
     
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
     const texteCompletWidth = doc.getTextWidth(texteComplet);
+    
     doc.setFont('helvetica', 'bold');
     const montantTexteWidth = doc.getTextWidth(montantTexte);
     const largeurTotale = texteCompletWidth + montantTexteWidth;
@@ -1694,7 +1751,7 @@ const generatePDF = async (vente) => {
     doc.text(texteComplet, startX, yPosition);
     
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 0, 0);
+    doc.setTextColor(255, 0, 0); // TEXTE EN ROUGE
     doc.text(montantTexte, startX + texteCompletWidth, yPosition);
     
     // Pied de page
