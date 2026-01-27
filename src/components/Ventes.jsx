@@ -1070,8 +1070,7 @@ const Ventes = () => {
   }
 
   // Générer un PDF
-
-  const generatePDF = async (vente) => {
+const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
     
@@ -1082,6 +1081,41 @@ const Ventes = () => {
         severity: 'error' 
       });
       return false;
+    }
+
+    // CORRECTION: Extraction correcte des données du client
+    // Gestion des différentes structures possibles de l'objet client
+    let clientData = {};
+    
+    if (venteActualisee.client) {
+      // Si client est un objet
+      if (typeof venteActualisee.client === 'object') {
+        clientData = {
+          nom: venteActualisee.client.nom || venteActualisee.client_nom || 'Non spécifié',
+          adresse: venteActualisee.client.adresse || venteActualisee.client_adresse || '',
+          telephone: venteActualisee.client.telephone || venteActualisee.client_telephone || '',
+          email: venteActualisee.client.email || venteActualisee.client_email || '',
+          id: venteActualisee.client.id || venteActualisee.client_id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`
+        };
+      } else {
+        // Si client est un ID ou autre
+        clientData = {
+          nom: venteActualisee.client_nom || 'Non spécifié',
+          adresse: venteActualisee.client_adresse || '',
+          telephone: venteActualisee.client_telephone || '',
+          email: venteActualisee.client_email || '',
+          id: venteActualisee.client_id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`
+        };
+      }
+    } else {
+      // Si pas d'objet client direct
+      clientData = {
+        nom: venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié',
+        adresse: venteActualisee.client_adresse || venteActualisee.client?.adresse || '',
+        telephone: venteActualisee.client_telephone || venteActualisee.client?.telephone || '',
+        email: venteActualisee.client_email || venteActualisee.client?.email || '',
+        id: venteActualisee.client_id || venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`
+      };
     }
 
     const doc = new jsPDF({
@@ -1201,7 +1235,7 @@ const Ventes = () => {
     doc.setFont('helvetica', 'bold');
     doc.text('Nom:', infoSocieteX + 5, infoY);
     doc.setFont('helvetica', 'normal');
-    doc.text('MSG SARL', infoSocieteX + 15, infoY);
+    doc.text('MGS SARL', infoSocieteX + 15, infoY);
     infoY += 4.5;
     
     doc.setFont('helvetica', 'bold');
@@ -1232,9 +1266,9 @@ const Ventes = () => {
     
     const sectionTop = yPosition;
     
-    // SECTION INFOS CLIENT (DROITE)
+    // SECTION INFOS CLIENT (DROITE) - CORRIGÉE
     let clientY = sectionTop + 4;
-    const clientRightMargin = pageWidth - margins.right - 60;
+    const clientRightMargin = pageWidth - margins.right - 85;
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -1244,7 +1278,8 @@ const Ventes = () => {
     doc.setDrawColor(0, 0, 0);
     doc.setLineWidth(0.2);
     const clientTitleWidth = doc.getTextWidth('CLIENT');
-    doc.line(clientRightMargin + (15 - clientTitleWidth) / 2, clientY + 1, clientRightMargin + (17 - clientTitleWidth) / 2 + clientTitleWidth, clientY + 1);
+    doc.line(clientRightMargin + (15 - clientTitleWidth) / 2, clientY + 1, 
+             clientRightMargin + (17 - clientTitleWidth) / 2 + clientTitleWidth, clientY + 1);
 
     clientY += 7;
 
@@ -1252,24 +1287,62 @@ const Ventes = () => {
     doc.setTextColor(0, 0, 0);
 
     doc.setFont('helvetica', 'bold');
-    doc.text('Dénomination :', clientRightMargin, clientY);
+    doc.text('Nom :', clientRightMargin, clientY);
     doc.setFont('helvetica', 'normal');
-    const clientNom = venteActualisee.client_nom || venteActualisee.client?.nom || 'Non spécifié';
+    
+    // CORRECTION: Utilisation de clientData au lieu de venteActualisee.client_nom directement
+    const clientNom = clientData.nom || 'Non spécifié';
     doc.text(clientNom, clientRightMargin + 30, clientY);
     clientY += 4.5;
 
     doc.setFont('helvetica', 'bold');
     doc.text('Adresse :', clientRightMargin, clientY);
     doc.setFont('helvetica', 'normal');
-    const clientAdresse = venteActualisee.client_adresse || venteActualisee.client?.adresse || '';
-    doc.text(clientAdresse, clientRightMargin + 30, clientY);
-    clientY += 4.5;
+    
+    // CORRECTION: Utilisation de clientData.adresse
+    const clientAdresse = clientData.adresse || '';
+    
+    // Gestion de l'adresse trop longue
+    let adresseAffichage = clientAdresse;
+    if (clientAdresse.length > 30) {
+      const parties = [];
+      for (let i = 0; i < clientAdresse.length; i += 30) {
+        parties.push(clientAdresse.substring(i, i + 30));
+      }
+      
+      // Afficher la première ligne
+      doc.text(parties[0], clientRightMargin + 30, clientY);
+      clientY += 4.5;
+      
+      // Afficher les lignes suivantes si nécessaire
+      for (let i = 1; i < parties.length; i++) {
+        if (clientY < 260) { // Empêcher de dépasser la page
+          doc.text(parties[i], clientRightMargin + 30, clientY);
+          clientY += 4.5;
+        }
+      }
+    } else {
+      doc.text(adresseAffichage, clientRightMargin + 30, clientY);
+      clientY += 4.5;
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.text('Téléphone :', clientRightMargin, clientY);
     doc.setFont('helvetica', 'normal');
-    const clientTel = venteActualisee.client_telephone || venteActualisee.client?.telephone || '';
+    
+    // CORRECTION: Utilisation de clientData.telephone
+    const clientTel = clientData.telephone || '';
     doc.text(clientTel, clientRightMargin + 30, clientY);
+    clientY += 4.5;
+
+    // Optionnel: Ajout de l'email du client
+    if (clientData.email) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Email :', clientRightMargin, clientY);
+      doc.setFont('helvetica', 'normal');
+      doc.text(clientData.email, clientRightMargin + 30, clientY);
+      clientY += 4.5;
+    }
     
     // SECTION INFOS FACTURE (GAUCHE)
     let factureY = sectionTop + 4;
@@ -1322,9 +1395,11 @@ const Ventes = () => {
     doc.setFont('helvetica', 'bold');
     doc.text('N° Client :', factureLeftMargin, factureY);
     doc.setFont('helvetica', 'normal');
-    const clientCode = venteActualisee.client?.id || `CLI${venteActualisee.id?.toString().padStart(6, '0')}`;
-    doc.text(clientCode, factureLeftMargin + 28, factureY);
+    
+    // CORRECTION: Utilisation de clientData.id
+    doc.text(clientData.id.toString(), factureLeftMargin + 28, factureY);
 
+    // Ajustement de la position Y en fonction de la hauteur des sections client/facture
     yPosition = Math.max(factureY + 4, clientY + 8);
     
     const colWidths = {
@@ -1489,13 +1564,11 @@ const Ventes = () => {
       yPosition += ligneHeight;
     }
 
-    // Fonction COMPLÈTEMENT CORRIGÉE nombreEnLettres
+    // Fonction nombreEnLettres
     const nombreEnLettres = (montant) => {
-      // Extraction de la partie entière et décimale
       const entier = Math.floor(montant);
       const decimal = Math.round((montant - entier) * 100);
       
-      // Tableaux de conversion
       const unites = [
         '', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf',
         'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 
@@ -1507,21 +1580,17 @@ const Ventes = () => {
         'soixante', 'soixante', 'quatre-vingt', 'quatre-vingt'
       ];
 
-      // Fonction récursive pour convertir n'importe quel nombre
       const convertirNombre = (nombre) => {
         if (nombre === 0) return '';
         
-        // Moins de 20
         if (nombre < 20) {
           return unites[nombre];
         }
         
-        // Entre 20 et 99
         if (nombre < 100) {
           const dizaine = Math.floor(nombre / 10);
           const unite = nombre % 10;
           
-          // Cas spéciaux : soixante-dix, quatre-vingt-dix
           if (dizaine === 7 || dizaine === 9) {
             const base = dizaine === 7 ? 60 : 80;
             const reste = nombre - base;
@@ -1534,24 +1603,22 @@ const Ventes = () => {
             } else if (reste > 0) {
               resultat += '-' + unites[reste];
             } else if (dizaine === 8) {
-              resultat += 's'; // quatre-vingts
+              resultat += 's';
             }
             return resultat;
           }
           
-          // Cas normaux
           let resultat = dizaines[dizaine];
           if (unite === 1 && dizaine !== 8 && dizaine !== 9) {
             resultat += '-et-un';
           } else if (unite > 0) {
             resultat += '-' + unites[unite];
           } else if (dizaine === 8) {
-            resultat += 's'; // quatre-vingts
+            resultat += 's';
           }
           return resultat;
         }
         
-        // Entre 100 et 999
         if (nombre < 1000) {
           const centaines = Math.floor(nombre / 100);
           const reste = nombre % 100;
@@ -1571,7 +1638,6 @@ const Ventes = () => {
           return resultat;
         }
         
-        // Entre 1000 et 999999
         if (nombre < 1000000) {
           const milliers = Math.floor(nombre / 1000);
           const reste = nombre % 1000;
@@ -1584,16 +1650,11 @@ const Ventes = () => {
           }
           
           if (reste > 0) {
-            if (reste < 100 && reste !== 0) {
-              resultat += ' ' + convertirNombre(reste);
-            } else {
-              resultat += ' ' + convertirNombre(reste);
-            }
+            resultat += ' ' + convertirNombre(reste);
           }
           return resultat;
         }
         
-        // Entre 1,000,000 et 999,999,999
         if (nombre < 1000000000) {
           const millions = Math.floor(nombre / 1000000);
           const reste = nombre % 1000000;
@@ -1606,20 +1667,14 @@ const Ventes = () => {
           }
           
           if (reste > 0) {
-            if (reste < 100) {
-              resultat += ' ' + convertirNombre(reste);
-            } else {
-              resultat += ' ' + convertirNombre(reste);
-            }
+            resultat += ' ' + convertirNombre(reste);
           }
           return resultat;
         }
         
-        // Si le nombre est trop grand
         return 'montant trop élevé';
       };
 
-      // Conversion de la partie entière
       let resultatEntier = '';
       
       if (entier === 0) {
@@ -1628,19 +1683,16 @@ const Ventes = () => {
         resultatEntier = convertirNombre(entier);
       }
       
-      // Capitalisation de la première lettre
       if (resultatEntier.length > 0) {
         resultatEntier = resultatEntier.charAt(0).toUpperCase() + resultatEntier.slice(1);
       }
       
-      // Ajout de la devise
       let resultatFinal = resultatEntier + ' franc';
       
       if (entier > 1) {
         resultatFinal += 's';
       }
       
-      // Ajout des centimes si nécessaire
       if (decimal > 0) {
         const centimesTexte = convertirNombre(decimal);
         if (centimesTexte) {
@@ -1713,7 +1765,7 @@ const Ventes = () => {
     doc.setFontSize(11);
     doc.text(formatNumber(montantRestant), totalColX + totalColWidth - 6, yPosition, { align: 'right' });
     
-    // SECTION : "Arrêtée la présente facture..." AVEC LE TEXTE EN ROUGE
+    // SECTION : "Arrêtée la présente facture..."
     yPosition = totalSectionTop + totalBoxHeight + 8;
     
     doc.setFontSize(11);
@@ -1738,7 +1790,7 @@ const Ventes = () => {
     doc.text(texteComplet, startX, yPosition);
     
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 0, 0); // TEXTE EN ROUGE
+    doc.setTextColor(255, 0, 0);
     doc.text(montantTexte, startX + texteCompletWidth, yPosition);
     
     // Pied de page
@@ -1752,7 +1804,8 @@ const Ventes = () => {
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     
-    const infoSocietePied = `RCCM : ; Adresse : LYMANYA ; Tél : +225 05 45 08 75 1008 05 79 51 7`;
+    // CORRECTION: Information de la société dans le pied de page
+    const infoSocietePied = `RCCM : ; Adresse : LYMANYA ; Tél : +225 05 45 75 18 / 05 79 51 75`;
     doc.text(infoSocietePied, pageWidth / 2, piedPageY - 3, { align: 'center' });
     
     const pageCount = doc.internal.getNumberOfPages();
@@ -1797,7 +1850,6 @@ const Ventes = () => {
   }
 };
 
-  
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
