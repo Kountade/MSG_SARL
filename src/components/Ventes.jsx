@@ -1070,6 +1070,7 @@ const Ventes = () => {
   }
 
   // Générer un PDF
+// Générer un PDF
 const generatePDF = async (vente) => {
   try {
     const venteActualisee = await refreshVenteDetails(vente.id) || vente;
@@ -1549,9 +1550,8 @@ const generatePDF = async (vente) => {
         doc.text(remiseFormatted, colPositions.remise + colWidths.remise - 2, yPosition + cellPaddingY, { align: 'right' });
         doc.setTextColor(0, 0, 0);
         
-        doc.setFont('helvetica', 'bold');
+        // CORRECTION: Colonne MONTANT en police normale (retirer le gras)
         doc.text(montantFormatted, colPositions.montant + colWidths.montant - 4, yPosition + cellPaddingY, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
         
         yPosition += ligneHeight;
       });
@@ -1849,7 +1849,6 @@ const generatePDF = async (vente) => {
     return false;
   }
 };
-
 
   // Confirmer une vente
   const handleConfirmerVente = async (venteId) => {
