@@ -69,7 +69,10 @@ import {
   Category as CategoryIcon,
   Image as ImageIcon,
   AllInclusive as AllInclusiveIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material'
 
 // Image par défaut si le produit n'a pas d'image
@@ -90,11 +93,18 @@ const PointDeVente = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [submitting, setSubmitting] = useState(false)
   const [selectedTab, setSelectedTab] = useState('all')
-  const [categories, setCategories] = useState([]) // État pour stocker les catégories
+  const [categories, setCategories] = useState([])
+  
+  // États pour l'édition rapide des quantités
+  const [editingIndex, setEditingIndex] = useState(null)
+  const [editQuantity, setEditQuantity] = useState('')
+  const [batchMode, setBatchMode] = useState(false)
+  const [batchQuantity, setBatchQuantity] = useState(1)
 
   // Références pour le scroll
   const produitsContainerRef = useRef(null)
   const panierContainerRef = useRef(null)
+  const quantityInputRef = useRef(null)
 
   // Formulaire vente
   const [formData, setFormData] = useState({
@@ -149,7 +159,6 @@ const PointDeVente = () => {
 
   // Fonction pour extraire les catégories des produits
   const extraireCategoriesDesProduits = (produitsData) => {
-    // Créer un Set des catégories uniques
     const categoriesSet = new Set()
     
     produitsData.forEach(produit => {
@@ -158,9 +167,8 @@ const PointDeVente = () => {
       }
     })
     
-    // Convertir le Set en tableau avec le bon format
     return Array.from(categoriesSet).map((categorie, index) => ({
-      id: index + 1, // ID temporaire
+      id: index + 1,
       nom: categorie,
       description: `Catégorie: ${categorie}`,
       nombre_produits: produitsData.filter(p => p.categorie === categorie).length
@@ -188,8 +196,8 @@ const PointDeVente = () => {
     }
   }
 
-  // Ajouter un produit au panier
-  const ajouterAuPanier = async (produit) => {
+  // Ajouter un produit au panier avec quantité personnalisée
+  const ajouterAuPanier = async (produit, quantite = 1) => {
     if (!selectedEntrepot) {
       setSnackbar({ open: true, message: 'Veuillez sélectionner un entrepôt', severity: 'warning' })
       return
@@ -207,12 +215,22 @@ const PointDeVente = () => {
       return
     }
 
+    if (quantite > stockInfo.disponible) {
+      setSnackbar({ 
+        open: true, 
+        message: `Stock insuffisant: ${stockInfo.disponible} disponibles`, 
+        severity: 'warning' 
+      })
+      return
+    }
+
     const produitExistant = panier.find(item => 
       item.produit.id === produit.id && item.entrepot === selectedEntrepot
     )
 
     if (produitExistant) {
-      if (produitExistant.quantite + 1 > stockInfo.disponible) {
+      const nouvelleQuantite = produitExistant.quantite + quantite
+      if (nouvelleQuantite > stockInfo.disponible) {
         setSnackbar({ 
           open: true, 
           message: `Quantité maximale atteinte (${stockInfo.disponible} disponibles)`, 
@@ -223,31 +241,36 @@ const PointDeVente = () => {
       
       setPanier(panier.map(item =>
         item.produit.id === produit.id && item.entrepot === selectedEntrepot
-          ? { ...item, quantite: item.quantite + 1 }
+          ? { ...item, quantite: nouvelleQuantite }
           : item
       ))
     } else {
       setPanier([...panier, {
         produit,
         entrepot: selectedEntrepot,
-        quantite: 1,
+        quantite,
         prix_unitaire: produit.prix_vente
       }])
     }
 
     setSnackbar({ 
       open: true, 
-      message: `${produit.nom} ajouté au panier`, 
+      message: `${produit.nom} (${quantite}) ajouté au panier`, 
       severity: 'success' 
     })
   }
 
-  // Incrémenter la quantité d'un produit dans le panier
-  const incrementerQuantite = async (index) => {
+  // Mettre à jour la quantité d'un produit dans le panier
+  const mettreAJourQuantite = async (index, nouvelleQuantite) => {
+    if (nouvelleQuantite < 1) {
+      retirerDuPanier(index)
+      return
+    }
+
     const item = panier[index]
     const stockInfo = await checkStockDisponible(item.produit.id, item.entrepot)
     
-    if (item.quantite + 1 > stockInfo.disponible) {
+    if (nouvelleQuantite > stockInfo.disponible) {
       setSnackbar({ 
         open: true, 
         message: `Stock insuffisant: ${stockInfo.disponible} disponibles`, 
@@ -257,8 +280,14 @@ const PointDeVente = () => {
     }
 
     const nouveauPanier = [...panier]
-    nouveauPanier[index].quantite += 1
+    nouveauPanier[index].quantite = nouvelleQuantite
     setPanier(nouveauPanier)
+  }
+
+  // Incrémenter la quantité d'un produit dans le panier
+  const incrementerQuantite = async (index, pas = 1) => {
+    const item = panier[index]
+    await mettreAJourQuantite(index, item.quantite + pas)
   }
 
   // Décrémenter la quantité d'un produit dans le panier
@@ -268,6 +297,44 @@ const PointDeVente = () => {
       nouveauPanier[index].quantite -= 1
       setPanier(nouveauPanier)
     }
+  }
+
+  // Activer le mode édition pour une quantité
+  const activerEditionQuantite = (index) => {
+    setEditingIndex(index)
+    setEditQuantity(panier[index].quantite.toString())
+    
+    // Focus sur le champ après un court délai
+    setTimeout(() => {
+      if (quantityInputRef.current) {
+        quantityInputRef.current.focus()
+        quantityInputRef.current.select()
+      }
+    }, 10)
+  }
+
+  // Sauvegarder l'édition de la quantité
+  const sauvegarderEditionQuantite = async (index) => {
+    const quantite = parseInt(editQuantity)
+    if (isNaN(quantite) || quantite < 1) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Veuillez entrer une quantité valide', 
+        severity: 'error' 
+      })
+      annulerEditionQuantite()
+      return
+    }
+    
+    await mettreAJourQuantite(index, quantite)
+    setEditingIndex(null)
+    setEditQuantity('')
+  }
+
+  // Annuler l'édition
+  const annulerEditionQuantite = () => {
+    setEditingIndex(null)
+    setEditQuantity('')
   }
 
   // Retirer un produit du panier
@@ -283,7 +350,16 @@ const PointDeVente = () => {
     setSnackbar({ open: true, message: 'Panier vidé', severity: 'info' })
   }
 
-  // Calculer le total du panier (SANS TVA)
+  // Gestionnaire d'événements pour la touche Entrée
+  const handleKeyPress = (event, index) => {
+    if (event.key === 'Enter') {
+      sauvegarderEditionQuantite(index)
+    } else if (event.key === 'Escape') {
+      annulerEditionQuantite()
+    }
+  }
+
+  // Calculer le total du panier
   const calculerTotalPanier = () => {
     return panier.reduce((total, item) => {
       return total + (item.quantite * parseFloat(item.prix_unitaire))
@@ -396,13 +472,12 @@ const PointDeVente = () => {
     return matchesSearch && matchesCategorie
   })
 
-  // Composant de carte produit
+  // Composant de carte produit amélioré
   const ProduitCard = ({ produit }) => {
     const quantiteDansPanier = panier
       .filter(item => item.produit.id === produit.id)
       .reduce((sum, item) => sum + item.quantite, 0)
 
-    // URL de l'image du produit
     const imageUrl = produit.image || DEFAULT_IMAGE
 
     return (
@@ -418,7 +493,6 @@ const PointDeVente = () => {
           borderColor: vividOrange
         }
       }}>
-        {/* Image du produit */}
         <CardMedia
           component="img"
           height="160"
@@ -543,6 +617,145 @@ const PointDeVente = () => {
           </Button>
         </CardActions>
       </Card>
+    )
+  }
+
+  // Composant pour l'affichage/édition de la quantité dans le panier
+  const QuantiteControl = ({ item, index }) => {
+    if (editingIndex === index) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <TextField
+            inputRef={quantityInputRef}
+            size="small"
+            type="number"
+            value={editQuantity}
+            onChange={(e) => setEditQuantity(e.target.value)}
+            onKeyDown={(e) => handleKeyPress(e, index)}
+            inputProps={{ 
+              min: 1,
+              style: { 
+                textAlign: 'center',
+                width: 60,
+                padding: '6px 8px'
+              }
+            }}
+            sx={{ 
+              '& .MuiInputBase-root': {
+                height: 36
+              }
+            }}
+          />
+          <IconButton 
+            size="small" 
+            onClick={() => sauvegarderEditionQuantite(index)}
+            sx={{ 
+              border: `1px solid ${darkCayn}`,
+              backgroundColor: alpha(darkCayn, 0.1),
+              color: darkCayn,
+              '&:hover': { 
+                backgroundColor: alpha(darkCayn, 0.2)
+              }
+            }}
+          >
+            <SaveIcon fontSize="small" />
+          </IconButton>
+          <IconButton 
+            size="small" 
+            onClick={annulerEditionQuantite}
+            sx={{ 
+              border: `1px solid ${vividOrange}`,
+              backgroundColor: alpha(vividOrange, 0.1),
+              color: vividOrange,
+              '&:hover': { 
+                backgroundColor: alpha(vividOrange, 0.2)
+              }
+            }}
+          >
+            <CancelIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )
+    }
+
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+        <IconButton 
+          size="small" 
+          onClick={() => decrementerQuantite(index)}
+          sx={{ 
+            border: `1px solid ${alpha(darkCayn, 0.2)}`,
+            '&:hover': { 
+              borderColor: vividOrange,
+              backgroundColor: alpha(vividOrange, 0.1)
+            }
+          }}
+        >
+          <RemoveIcon />
+        </IconButton>
+        
+        <Tooltip title="Cliquez pour éditer la quantité">
+          <Box 
+            onClick={() => activerEditionQuantite(index)}
+            sx={{ 
+              minWidth: 40, 
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: alpha(darkCayn, 0.05),
+              borderRadius: 1,
+              border: `1px solid ${alpha(darkCayn, 0.1)}`,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              '&:hover': {
+                backgroundColor: alpha(darkCayn, 0.1),
+                borderColor: vividOrange
+              }
+            }}
+          >
+            <Typography variant="h6" sx={{ 
+              fontWeight: 'bold',
+              color: darkCayn
+            }}>
+              {item.quantite}
+            </Typography>
+          </Box>
+        </Tooltip>
+        
+        <IconButton 
+          size="small" 
+          onClick={() => incrementerQuantite(index)}
+          sx={{ 
+            border: `1px solid ${alpha(darkCayn, 0.2)}`,
+            '&:hover': { 
+              borderColor: vividOrange,
+              backgroundColor: alpha(vividOrange, 0.1)
+            }
+          }}
+        >
+          <AddIcon />
+        </IconButton>
+        
+        {/* Bouton pour incrémenter rapidement */}
+        <Tooltip title="Ajouter 10">
+          <IconButton 
+            size="small"
+            onClick={() => incrementerQuantite(index, 10)}
+            sx={{ 
+              border: `1px solid ${alpha(darkCayn, 0.2)}`,
+              backgroundColor: alpha(darkCayn, 0.05),
+              fontSize: '0.8rem',
+              '&:hover': { 
+                borderColor: vividOrange,
+                backgroundColor: alpha(vividOrange, 0.1)
+              }
+            }}
+          >
+            +10
+          </IconButton>
+        </Tooltip>
+      </Box>
     )
   }
 
@@ -706,7 +919,7 @@ const PointDeVente = () => {
                 </Grid>
               </Grid>
 
-              {/* Onglets des catégories - Version améliorée */}
+              {/* Onglets des catégories */}
               {categories.length > 0 && (
                 <Box sx={{ mt: 2 }}>
                   <Tabs
@@ -765,7 +978,6 @@ const PointDeVente = () => {
             borderRadius: 3,
             backgroundColor: alpha(darkCayn, 0.02)
           }}>
-            {/* En-tête avec compteur */}
             <Box sx={{ 
               p: 2, 
               pb: 1, 
@@ -785,7 +997,6 @@ const PointDeVente = () => {
                 } {selectedEntrepot && `| Entrepôt: ${entrepots.find(e => e.id == selectedEntrepot)?.nom}`}
               </Typography>
               
-              {/* Statistiques rapides */}
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Chip 
                   label={`${produits.length} produits`}
@@ -836,7 +1047,6 @@ const PointDeVente = () => {
                 </Box>
               ) : (
                 <>
-                  {/* Section par catégorie avec titre (uniquement pour l'onglet "Tous") */}
                   {selectedTab === 'all' && categories.length > 0 ? (
                     categories.map((categorie) => {
                       const produitsCategorie = filteredProduits.filter(p => p.categorie === categorie.nom)
@@ -845,7 +1055,6 @@ const PointDeVente = () => {
                       
                       return (
                         <Box key={categorie.id} sx={{ mb: 4 }}>
-                          {/* En-tête de catégorie */}
                           <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
@@ -874,7 +1083,6 @@ const PointDeVente = () => {
                             )}
                           </Box>
                           
-                          {/* Produits de cette catégorie */}
                           <Grid container spacing={2}>
                             {produitsCategorie.map((produit) => (
                               <Grid item xs={12} sm={6} md={4} lg={3} key={produit.id}>
@@ -978,7 +1186,6 @@ const PointDeVente = () => {
                       }}
                     >
                       <ListItem sx={{ px: 0 }}>
-                        {/* Image du produit dans le panier */}
                         <Box sx={{ mr: 2, flexShrink: 0 }}>
                           <Avatar
                             variant="rounded"
@@ -1015,44 +1222,7 @@ const PointDeVente = () => {
                           </Typography>
                         </Box>
                         
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => decrementerQuantite(index)}
-                            sx={{ 
-                              border: `1px solid ${alpha(darkCayn, 0.2)}`,
-                              '&:hover': { 
-                                borderColor: vividOrange,
-                                backgroundColor: alpha(vividOrange, 0.1)
-                              }
-                            }}
-                          >
-                            <RemoveIcon />
-                          </IconButton>
-                          
-                          <Typography variant="h6" sx={{ 
-                            minWidth: 30, 
-                            textAlign: 'center',
-                            fontWeight: 'bold',
-                            color: darkCayn
-                          }}>
-                            {item.quantite}
-                          </Typography>
-                          
-                          <IconButton 
-                            size="small" 
-                            onClick={() => incrementerQuantite(index)}
-                            sx={{ 
-                              border: `1px solid ${alpha(darkCayn, 0.2)}`,
-                              '&:hover': { 
-                                borderColor: vividOrange,
-                                backgroundColor: alpha(vividOrange, 0.1)
-                              }
-                            }}
-                          >
-                            <AddIcon />
-                          </IconButton>
-                        </Box>
+                        <QuantiteControl item={item} index={index} />
                       </ListItem>
                       
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
@@ -1079,7 +1249,7 @@ const PointDeVente = () => {
               )}
             </Box>
 
-            {/* Total et actions (fixe en bas) - SANS TVA */}
+            {/* Total et actions (fixe en bas) */}
             {panier.length > 0 && (
               <Box sx={{ 
                 p: 3, 
@@ -1171,7 +1341,7 @@ const PointDeVente = () => {
         </Box>
       </Box>
 
-      {/* Dialog de finalisation de vente - SANS TVA */}
+      {/* Dialog de finalisation de vente */}
       <Dialog 
         open={openDialog} 
         onClose={handleCloseDialog} 
