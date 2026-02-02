@@ -2632,20 +2632,38 @@ const generatePDF = async (vente) => {
                         </Grid>
                         
                         <Grid item xs={12} md={2}>
+                          {/* CHAMP QUANTITÉ MODIFIÉ - SIMPLE CHAMP TEXTE */}
                           <TextField
                             fullWidth
                             label="Quantité *"
                             type="number"
                             value={ligne.quantite}
                             onChange={(e) => handleLigneChange(index, 'quantite', e.target.value)}
-                            inputProps={{ min: 1 }}
+                            inputProps={{ 
+                              min: 1,
+                              style: { textAlign: 'center' }
+                            }}
                             required
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 '&:hover fieldset': {
                                   borderColor: darkCayn,
                                 },
-                              }
+                                // Supprimer les flèches de l'input number
+                                '& input[type=number]': {
+                                  '-moz-appearance': 'textfield',
+                                  '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                  },
+                                },
+                              },
+                              '& .MuiInputLabel-root': {
+                                color: darkCayn,
+                              },
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: alpha(darkCayn, 0.3),
+                              },
                             }}
                           />
                         </Grid>
@@ -3036,20 +3054,38 @@ const generatePDF = async (vente) => {
                         </Grid>
                         
                         <Grid item xs={12} md={2}>
+                          {/* CHAMP QUANTITÉ MODIFIÉ - SIMPLE CHAMP TEXTE */}
                           <TextField
                             fullWidth
                             label="Quantité *"
                             type="number"
                             value={ligne.quantite}
                             onChange={(e) => handleLigneChange(index, 'quantite', e.target.value)}
-                            inputProps={{ min: 1 }}
+                            inputProps={{ 
+                              min: 1,
+                              style: { textAlign: 'center' }
+                            }}
                             required
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 '&:hover fieldset': {
                                   borderColor: darkCayn,
                                 },
-                              }
+                                // Supprimer les flèches de l'input number
+                                '& input[type=number]': {
+                                  '-moz-appearance': 'textfield',
+                                  '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
+                                    '-webkit-appearance': 'none',
+                                    margin: 0,
+                                  },
+                                },
+                              },
+                              '& .MuiInputLabel-root': {
+                                color: darkCayn,
+                              },
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: alpha(darkCayn, 0.3),
+                              },
                             }}
                           />
                         </Grid>
